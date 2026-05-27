@@ -1,0 +1,12 @@
+# Automatically generated context index for Utopia::Project guides.
+# Do not edit the files in this directory directly, instead edit the guides and then run `bake utopia:project:agent:context:update`.
+---
+description: Envoy xDS monitor for async-service-supervisor.
+metadata:
+  documentation_uri: https://socketry.github.io/async-service-supervisor-envoy/
+  source_code_uri: https://github.com/socketry/async-service-supervisor-envoy.git
+files:
+- path: getting-started.md
+  title: Getting Started
+  description: This guide explains how to use `async-service-supervisor-envoy` to
+    publish supervised worker endpoints to Envoy using xDS.

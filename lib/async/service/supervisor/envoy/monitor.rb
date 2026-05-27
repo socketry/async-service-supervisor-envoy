@@ -11,12 +11,22 @@ require "set"
 
 require_relative "endpoint"
 
+# @namespace
 module Async
+	# @namespace
 	module Service
+		# @namespace
 		module Supervisor
+			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
-				# Publishes supervisor workers to Envoy using xDS CDS/EDS.
+				# Represents a supervisor monitor that publishes worker endpoints to Envoy using xDS.
 				class Monitor < Async::Service::Supervisor::Monitor
+					# Initialize the monitor.
+					# @parameter bind [String | Nil] The optional address for the xDS control plane server.
+					# @parameter cluster [Proc | String | Symbol] The cluster name or callable used to derive it from a supervisor controller.
+					# @parameter include [Proc | Object] The endpoint value or callable used to select workers for publication.
+					# @parameter health [Proc | Boolean] The health value or callable used to derive endpoint health.
+					# @parameter control_plane [Async::GRPC::XDS::ControlPlane] The xDS control plane to update.
 					def initialize(
 						bind: nil,
 						cluster: -> controller{controller.state[:name]},
@@ -38,8 +48,12 @@ module Async
 						@mutex = Mutex.new
 					end
 					
+					# @attribute [Async::GRPC::XDS::ControlPlane] The xDS control plane receiving cluster and endpoint updates.
 					attr :control_plane
 					
+					# Register a supervisor worker with Envoy.
+					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
+					# @returns [void]
 					def register(supervisor_controller)
 						@mutex.synchronize do
 							if record = build_record(supervisor_controller)
@@ -52,6 +66,9 @@ module Async
 						end
 					end
 					
+					# Remove a supervisor worker from Envoy.
+					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
+					# @returns [void]
 					def remove(supervisor_controller)
 						@mutex.synchronize do
 							@workers.delete(supervisor_controller.id)
@@ -59,6 +76,9 @@ module Async
 						end
 					end
 					
+					# Run the monitor and optional xDS server task.
+					# @parameter parent [Async::Task] The parent task used for the xDS server.
+					# @returns [Async::Task] The monitor task.
 					def run(parent: Async::Task.current)
 						task = super(parent: parent)
 						
@@ -72,6 +92,8 @@ module Async
 						task
 					end
 					
+					# Convert the currently published endpoints to JSON-compatible data.
+					# @returns [Hash] The clusters and endpoint hashes.
 					def as_json
 						@mutex.synchronize do
 							{
@@ -82,6 +104,8 @@ module Async
 						end
 					end
 					
+					# Refresh endpoint health and publish updated EDS state.
+					# @returns [void]
 					def run_once
 						@mutex.synchronize do
 							@workers.each_value do |record|

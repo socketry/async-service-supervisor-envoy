@@ -5,8 +5,7 @@
 
 source "https://rubygems.org"
 
-gem "async-grpc-xds", path: "../async-grpc-xds"
-gem "async-service-supervisor", path: "../async-service-supervisor"
+gem "async-grpc-xds", git: "https://github.com/socketry/async-grpc-xds.git"
 
 gemspec
 
