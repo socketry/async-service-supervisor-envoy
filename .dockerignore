@@ -1,0 +1,6 @@
+.git
+.bundle
+.covered.db
+gems.locked
+pkg
+external

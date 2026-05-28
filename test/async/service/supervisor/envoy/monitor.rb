@@ -256,6 +256,9 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		}
 	end
 	
+	it "wraps nil endpoints" do
+		expect(Async::Service::Supervisor::Envoy::Endpoint.wrap(nil)).to be_nil
+	end
 	it "returns endpoint instances unchanged" do
 		endpoint = Async::Service::Supervisor::Envoy::Endpoint.new(address: "127.0.0.1", port: 50051)
 		

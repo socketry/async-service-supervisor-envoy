@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY gems.rb gems.locked *.gemspec ./
+COPY gems.rb *.gemspec ./
 COPY lib/async/service/supervisor/envoy/version.rb lib/async/service/supervisor/envoy/version.rb
 RUN bundle install
 
