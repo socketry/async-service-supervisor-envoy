@@ -1,0 +1,77 @@
+services:
+  supervisor:
+    build:
+      context: ..
+      dockerfile: control-plane/Dockerfile
+    command: bundle exec ruby control-plane/supervisor.rb
+    environment:
+      - BUNDLE_GEMFILE=/code/gems.rb
+      - BUNDLE_WITHOUT=maintenance
+      - CONSOLE_OUTPUT=XTerm
+      - XDS_BIND=http://0.0.0.0:18000
+      - SUPERVISOR_ENDPOINT=tcp://0.0.0.0:12000
+
+  backend-a:
+    build:
+      context: ..
+      dockerfile: control-plane/Dockerfile
+    command: bundle exec ruby control-plane/backend.rb
+    environment:
+      - BUNDLE_GEMFILE=/code/gems.rb
+      - BUNDLE_WITHOUT=maintenance
+      - CONSOLE_OUTPUT=XTerm
+      - BACKEND_ID=backend-a
+      - BACKEND_PORT=9292
+      - SERVICE_NAME=app-http1
+      - SUPERVISOR_ENDPOINT=tcp://supervisor:12000
+    depends_on:
+      supervisor:
+        condition: service_started
+
+  backend-b:
+    build:
+      context: ..
+      dockerfile: control-plane/Dockerfile
+    command: bundle exec ruby control-plane/backend.rb
+    environment:
+      - BUNDLE_GEMFILE=/code/gems.rb
+      - BUNDLE_WITHOUT=maintenance
+      - CONSOLE_OUTPUT=XTerm
+      - BACKEND_ID=backend-b
+      - BACKEND_PORT=9293
+      - SERVICE_NAME=app-http1
+      - SUPERVISOR_ENDPOINT=tcp://supervisor:12000
+    depends_on:
+      supervisor:
+        condition: service_started
+
+  envoy:
+    image: envoyproxy/envoy:v1.32-latest
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "10000:10000"
+      - "19000:19000"
+    depends_on:
+      supervisor:
+        condition: service_started
+      backend-a:
+        condition: service_started
+      backend-b:
+        condition: service_started
+
+  tests:
+    build:
+      context: ..
+      dockerfile: control-plane/Dockerfile
+    command: bundle exec sus control-plane/test
+    environment:
+      - BUNDLE_GEMFILE=/code/gems.rb
+      - BUNDLE_WITHOUT=maintenance
+      - CONSOLE_OUTPUT=XTerm
+      - COVERAGE=${COVERAGE}
+      - ENVOY_URI=http://envoy:10000
+      - ENVOY_ADMIN_URI=http://envoy:19000
+    depends_on:
+      - envoy

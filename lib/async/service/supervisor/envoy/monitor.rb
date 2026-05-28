@@ -7,8 +7,8 @@ require "async/http/endpoint"
 require "async/service/supervisor/monitor"
 require "async/grpc/xds/control_plane"
 require "async/grpc/xds/server"
-require "set"
 
+require_relative "delegate"
 require_relative "endpoint"
 
 # @namespace
@@ -23,27 +23,21 @@ module Async
 				class Monitor < Async::Service::Supervisor::Monitor
 					# Initialize the monitor.
 					# @parameter bind [String | Nil] The optional address for the xDS control plane server.
-					# @parameter cluster [Proc | String | Symbol] The cluster name or callable used to derive it from a supervisor controller.
-					# @parameter include [Proc | Object] The endpoint value or callable used to select workers for publication.
-					# @parameter health [Proc | Boolean] The health value or callable used to derive endpoint health.
+					# @parameter delegate [Delegate] The delegate used to map supervisor state into Envoy endpoints.
 					# @parameter control_plane [Async::GRPC::XDS::ControlPlane] The xDS control plane to update.
 					def initialize(
 						bind: nil,
-						cluster: -> controller{controller.state[:name]},
-						include: -> controller{controller.state[:endpoint]},
-						health: -> controller{true},
+						delegate: Delegate.new,
 						control_plane: Async::GRPC::XDS::ControlPlane.new,
 						**options
 					)
 						super(**options)
 						
 						@bind = bind
-						@cluster = cluster
-						@include = binding.local_variable_get(:include)
-						@health = health
+						@delegate = delegate
 						@control_plane = control_plane
-						@workers = {}
-						@clusters = Set.new
+						@controllers = {}
+						@published_clusters = {}
 						@server_task = nil
 						@mutex = Mutex.new
 					end
@@ -51,18 +45,16 @@ module Async
 					# @attribute [Async::GRPC::XDS::ControlPlane] The xDS control plane receiving cluster and endpoint updates.
 					attr :control_plane
 					
+					# @attribute [Delegate] The delegate used to map supervisor state into Envoy endpoints.
+					attr :delegate
+					
 					# Register a supervisor worker with Envoy.
 					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
 					# @returns [void]
 					def register(supervisor_controller)
 						@mutex.synchronize do
-							if record = build_record(supervisor_controller)
-								@workers[supervisor_controller.id] = record
-								@clusters.add(record[:cluster])
-								publish_cluster(record[:cluster])
-							end
-							
-							publish_endpoints
+							@controllers[supervisor_controller.id] = supervisor_controller
+							reconcile
 						end
 					end
 					
@@ -71,8 +63,8 @@ module Async
 					# @returns [void]
 					def remove(supervisor_controller)
 						@mutex.synchronize do
-							@workers.delete(supervisor_controller.id)
-							publish_endpoints
+							@controllers.delete(supervisor_controller.id)
+							reconcile
 						end
 					end
 					
@@ -97,9 +89,7 @@ module Async
 					def as_json
 						@mutex.synchronize do
 							{
-								clusters: clusters.transform_values do |records|
-									records.map{|record| record[:endpoint].to_h}
-								end
+								clusters: build_clusters
 							}
 						end
 					end
@@ -108,67 +98,57 @@ module Async
 					# @returns [void]
 					def run_once
 						@mutex.synchronize do
-							@workers.each_value do |record|
-								record[:endpoint] = record[:endpoint].class.new(
-									address: record[:endpoint].address,
-									port: record[:endpoint].port,
-									hostname: record[:endpoint].hostname,
-									healthy: healthy?(record[:controller])
-								)
-							end
-							
-							publish_endpoints
+							reconcile
 						end
 					end
 					
 					private
 					
-					def build_record(supervisor_controller)
-						cluster = call(@cluster, supervisor_controller)
-						endpoint = Endpoint.wrap(call(@include, supervisor_controller))
+					def build_record(supervisor_controller, endpoint)
+						cluster = @delegate.cluster(supervisor_controller, endpoint)
 						return unless cluster && endpoint
 						
 						{
 							controller: supervisor_controller,
 							cluster: cluster.to_s,
 							endpoint: Endpoint.new(
+								name: endpoint.name,
 								address: endpoint.address,
 								port: endpoint.port,
 								hostname: endpoint.hostname,
-								healthy: healthy?(supervisor_controller)
+								protocol: endpoint.protocol,
+								healthy: @delegate.healthy?(supervisor_controller, endpoint)
 							)
 						}
 					end
 					
-					def healthy?(supervisor_controller)
-						!!call(@health, supervisor_controller)
-					end
-					
-					def call(callable, supervisor_controller)
-						if callable.respond_to?(:call)
-							callable.call(supervisor_controller)
-						else
-							callable
+					def build_records(supervisor_controller)
+						@delegate.endpoint_list(supervisor_controller).filter_map do |endpoint|
+							build_record(supervisor_controller, endpoint)
 						end
 					end
 					
-					def publish_cluster(cluster)
-						@control_plane.update_cluster(cluster)
-					end
-					
-					def publish_endpoints
-						grouped = clusters
+					def reconcile
+						clusters = build_clusters
 						
-						@clusters.each do |cluster|
-							@control_plane.update_endpoints(
-								cluster,
-								grouped.fetch(cluster, []).map{|record| record[:endpoint].to_h}
-							)
+						clusters.each_key do |cluster|
+							@control_plane.update_cluster(cluster) unless @published_clusters.key?(cluster)
+							@published_clusters[cluster] = true
+						end
+						
+						(@published_clusters.keys | clusters.keys).each do |cluster|
+							@control_plane.update_endpoints(cluster, clusters.fetch(cluster, []))
 						end
 					end
 					
-					def clusters
-						@workers.each_value.group_by{|record| record[:cluster]}
+					def build_clusters
+						@controllers.each_value.flat_map do |controller|
+							build_records(controller)
+						end.group_by do |record|
+							record[:cluster]
+						end.transform_values do |records|
+							records.map{|record| record[:endpoint].to_h}
+						end
 					end
 				end
 			end

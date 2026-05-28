@@ -8,7 +8,6 @@ require "envoy/config/endpoint/v3/endpoint_pb"
 
 describe Async::Service::Supervisor::Envoy::Monitor do
 	Controller = Struct.new(:id, :state)
-	Endpoint = Struct.new(:address, :port)
 	
 	let(:monitor) {subject.new}
 	let(:control_plane) {monitor.control_plane}
@@ -31,11 +30,11 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		monitor.register(controller)
 		
 		assignment = endpoint_assignment("myservice")
-		lb_endpoint = assignment.endpoints.first.lb_endpoints.first
+		load_balancer_endpoint = assignment.endpoints.first.lb_endpoints.first
 		
 		expect(assignment.cluster_name).to be == "myservice"
-		expect(lb_endpoint.endpoint.address.socket_address.address).to be == "127.0.0.1"
-		expect(lb_endpoint.endpoint.address.socket_address.port_value).to be == 50051
+		expect(load_balancer_endpoint.endpoint.address.socket_address.address).to be == "127.0.0.1"
+		expect(load_balancer_endpoint.endpoint.address.socket_address.port_value).to be == 50051
 	end
 	
 	it "ignores workers without endpoints" do
@@ -73,8 +72,92 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(monitor.as_json[:clusters]).to have_keys("service-a", "service-b")
 	end
 	
-	it "uses health hooks for registered endpoints" do
-		monitor = subject.new(health: -> controller{controller.state[:healthy]})
+	it "uses endpoint names as the default cluster name" do
+		monitor.register(Controller.new(1, {
+			name: "worker",
+			endpoint: {name: "api-http2", address: "127.0.0.1", port: 50051}
+		}))
+		
+		expect(monitor.as_json[:clusters]).to have_keys("api-http2")
+	end
+	
+	it "accepts string keyed endpoint state" do
+		monitor.register(Controller.new(1, {
+			"name" => "myservice",
+			"endpoint" => {"address" => "127.0.0.1", "port" => 50051}
+		}))
+		
+		expect(monitor.as_json).to be == {
+			clusters: {
+				"myservice" => [
+					{
+						address: "127.0.0.1",
+						port: 50051,
+						healthy: true
+					}
+				]
+			}
+		}
+	end
+	
+	it "publishes multiple endpoints from one worker" do
+		monitor.register(Controller.new(1, {
+			endpoints: [
+				{name: "api-http1", address: "127.0.0.1", port: 50050, protocol: "http1"},
+				{name: "api-http2", address: "127.0.0.1", port: 50051, protocol: "http2"}
+			]
+		}))
+		
+		expect(monitor.as_json).to be == {
+			clusters: {
+				"api-http1" => [
+					{
+						name: "api-http1",
+						address: "127.0.0.1",
+						port: 50050,
+						protocol: "http1",
+						healthy: true
+					}
+				],
+				"api-http2" => [
+					{
+						name: "api-http2",
+						address: "127.0.0.1",
+						port: 50051,
+						protocol: "http2",
+						healthy: true
+					}
+				]
+			}
+		}
+	end
+	
+	it "updates published endpoints from controller state" do
+		controller = Controller.new(1, {
+			name: "myservice",
+			endpoint: {address: "127.0.0.1", port: 50051}
+		})
+		
+		monitor.register(controller)
+		
+		controller.state[:endpoint] = {address: "127.0.0.2", port: 50052}
+		monitor.run_once
+		
+		assignment = endpoint_assignment("myservice")
+		load_balancer_endpoint = assignment.endpoints.first.lb_endpoints.first
+		
+		expect(load_balancer_endpoint.endpoint.address.socket_address.address).to be == "127.0.0.2"
+		expect(load_balancer_endpoint.endpoint.address.socket_address.port_value).to be == 50052
+	end
+	
+	it "uses the delegate for endpoint health" do
+		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
+			def healthy?(supervisor_controller, endpoint)
+				supervisor_controller.state[:healthy]
+			end
+		end.new
+		
+		monitor = subject.new(delegate: delegate)
 		controller = Controller.new(1, {
 			name: "myservice",
 			endpoint: {address: "127.0.0.1", port: 50051},
@@ -88,19 +171,25 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			["myservice"]
 		)
 		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
-		lb_endpoint = assignment.endpoints.first.lb_endpoints.first
+		load_balancer_endpoint = assignment.endpoints.first.lb_endpoints.first
 		
-		expect(lb_endpoint.health_status).to be == :UNHEALTHY
+		expect(load_balancer_endpoint.health_status).to be == :UNHEALTHY
 	end
 	
 	it "refreshes endpoint health on each monitor iteration" do
+		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
+			def healthy?(supervisor_controller, endpoint)
+				supervisor_controller.state[:healthy]
+			end
+		end.new
+		
 		controller = Controller.new(1, {
 			name: "myservice",
 			endpoint: {address: "127.0.0.1", port: 50051},
 			healthy: true
 		})
 		
-		monitor = subject.new(health: -> controller{controller.state[:healthy]})
+		monitor = subject.new(delegate: delegate)
 		monitor.register(controller)
 		
 		controller.state[:healthy] = false
@@ -111,14 +200,32 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			["myservice"]
 		)
 		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
-		lb_endpoint = assignment.endpoints.first.lb_endpoints.first
+		load_balancer_endpoint = assignment.endpoints.first.lb_endpoints.first
 		
-		expect(lb_endpoint.health_status).to be == :UNHEALTHY
+		expect(load_balancer_endpoint.health_status).to be == :UNHEALTHY
 	end
 	
-	it "accepts constant cluster, endpoint, and health hooks" do
-		endpoint = {address: "127.0.0.1", port: 50051}
-		monitor = subject.new(cluster: "myservice", include: endpoint, health: false)
+	it "uses the delegate to customize cluster and endpoints" do
+		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
+			def endpoint_list(supervisor_controller)
+				[
+					Async::Service::Supervisor::Envoy::Endpoint.wrap(
+						address: "127.0.0.1",
+						port: 50051
+					)
+				]
+			end
+			
+			def cluster(supervisor_controller, endpoint)
+				"myservice"
+			end
+			
+			def healthy?(supervisor_controller, endpoint)
+				false
+			end
+		end.new
+		
+		monitor = subject.new(delegate: delegate)
 		
 		monitor.register(Controller.new(1, {}))
 		
@@ -135,14 +242,16 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		}
 	end
 	
-	it "wraps endpoint objects" do
+	it "wraps endpoint values" do
 		endpoint = Async::Service::Supervisor::Envoy::Endpoint.wrap(
-			Endpoint.new("127.0.0.1", 50051)
+			{name: "api", address: "127.0.0.1", port: 50051, protocol: "http2"}
 		)
 		
 		expect(endpoint.to_h).to be == {
+			name: "api",
 			address: "127.0.0.1",
 			port: 50051,
+			protocol: "http2",
 			healthy: true
 		}
 	end

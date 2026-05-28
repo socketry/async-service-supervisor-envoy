@@ -5,7 +5,7 @@
 
 source "https://rubygems.org"
 
-gem "async-grpc-xds", git: "https://github.com/socketry/async-grpc-xds.git"
+gem "falcon"
 
 gemspec
 

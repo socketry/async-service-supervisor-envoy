@@ -26,15 +26,7 @@ module Async
 						when Hash
 							new(**symbolize_keys(value))
 						else
-							if value.respond_to?(:address) && value.respond_to?(:port)
-								new(
-									address: value.address,
-									port: value.port,
-									hostname: value.respond_to?(:hostname) ? value.hostname : nil
-								)
-							else
-								raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
-							end
+							raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
 						end
 					end
 					
@@ -50,16 +42,23 @@ module Async
 					private_class_method :symbolize_keys
 					
 					# Initialize the endpoint.
+					# @parameter name [String | Nil] The optional endpoint name.
 					# @parameter address [String] The endpoint IP address or hostname.
 					# @parameter port [Integer] The endpoint port.
 					# @parameter hostname [String | Nil] The optional endpoint hostname.
+					# @parameter protocol [String | Symbol | Nil] The optional endpoint protocol.
 					# @parameter healthy [Boolean] Whether the endpoint should be published as healthy.
-					def initialize(address:, port:, hostname: nil, healthy: true)
+					def initialize(address:, port:, name: nil, hostname: nil, protocol: nil, healthy: true)
+						@name = name
 						@address = address
 						@port = port.to_i
 						@hostname = hostname
+						@protocol = protocol
 						@healthy = healthy
 					end
+					
+					# @attribute [String | Nil] The optional endpoint name.
+					attr :name
 					
 					# @attribute [String] The endpoint IP address or hostname.
 					attr :address
@@ -69,6 +68,9 @@ module Async
 					
 					# @attribute [String | Nil] The optional endpoint hostname.
 					attr :hostname
+					
+					# @attribute [String | Symbol | Nil] The optional endpoint protocol.
+					attr :protocol
 					
 					# Whether the endpoint is healthy.
 					# @returns [Boolean] Returns `true` when the endpoint should be published as healthy.
@@ -80,9 +82,11 @@ module Async
 					# @returns [Hash] The endpoint attributes.
 					def to_h
 						{
+							name: @name,
 							address: @address,
 							port: @port,
 							hostname: @hostname,
+							protocol: @protocol,
 							healthy: @healthy
 						}.compact
 					end

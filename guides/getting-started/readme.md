@@ -53,15 +53,27 @@ By default, workers are grouped into clusters by `state[:name]`.
 
 ## Custom Mapping
 
-You can customize cluster grouping, endpoint selection, and health:
+You can customize cluster grouping, endpoint selection, and health with a delegate:
 
 ``` ruby
+class EnvoyDelegate < Async::Service::Supervisor::Envoy::Delegate
+	def endpoint_list(supervisor_controller)
+		super
+	end
+	
+	def cluster(supervisor_controller, endpoint)
+		super
+	end
+	
+	def healthy?(supervisor_controller, endpoint)
+		true
+	end
+end
+
 Async::Service::Supervisor::Envoy::Monitor.new(
 	bind: "http://127.0.0.1:18000",
-	cluster: -> controller{controller.state[:name]},
-	include: -> controller{controller.state[:endpoint]},
-	health: -> controller{true}
+	delegate: EnvoyDelegate.new
 )
 ```
 
-Disconnected workers are removed from EDS. Registered workers that fail the `health` hook remain in EDS with an unhealthy endpoint status.
+Disconnected workers are removed from EDS. Registered workers that fail the delegate health check remain in EDS with an unhealthy endpoint status.

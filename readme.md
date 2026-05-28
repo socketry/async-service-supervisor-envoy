@@ -12,7 +12,7 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
   - **Supervisor integration** - Registers and removes endpoints from supervisor worker lifecycle events.
   - **Multiple clusters** - Groups workers by `state[:name]` by default.
   - **Endpoint contract** - Publishes workers with `state[:endpoint]` and ignores workers without endpoints.
-  - **Health hooks** - Uses supervisor-derived health hooks without active probing.
+  - **Delegate mapping** - Uses a delegate object for endpoint selection, cluster grouping, and health without active probing.
 
 ## Usage
 
