@@ -27,7 +27,6 @@ describe Async::Service::Supervisor::Envoy::Supervised do
 			[Addrinfo.tcp("127.0.0.1", 9292), Addrinfo.unix("/tmp/hello.ipc")]
 		)
 		state = {
-			name: "hello",
 			endpoint: {
 				name: "hello",
 				scheme: "http",

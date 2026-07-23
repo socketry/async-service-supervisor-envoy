@@ -18,8 +18,7 @@ module Async
 					# @parameter instance [Async::Container::Instance] The container instance.
 					# @parameter listener [Object] The bound listener descriptor.
 					def prepare_worker!(instance, listener:)
-						state = supervisor_worker_state.merge(endpoint: envoy_endpoint(listener))
-						prepare!(instance, state: state)
+						prepare!(instance, state: {endpoint: envoy_endpoint(listener)})
 					end
 					
 					# Convert a bound listener into serialized Envoy endpoint state.
