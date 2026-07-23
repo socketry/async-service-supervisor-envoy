@@ -106,17 +106,18 @@ module Async
 					
 					def build_record(supervisor_controller, endpoint)
 						cluster = @delegate.cluster(supervisor_controller, endpoint)
-						return unless cluster && endpoint
+						return unless cluster
 						
 						{
 							controller: supervisor_controller,
 							cluster: cluster.to_s,
+							scheme: endpoint.scheme,
+							protocol: endpoint.protocol,
 							endpoint: Endpoint.new(
 								name: endpoint.name,
-								address: endpoint.address,
-								port: endpoint.port,
-								hostname: endpoint.hostname,
+								scheme: endpoint.scheme,
 								protocol: endpoint.protocol,
+								addresses: endpoint.addresses,
 								healthy: @delegate.healthy?(supervisor_controller, endpoint)
 							)
 						}
@@ -129,11 +130,16 @@ module Async
 					end
 					
 					def reconcile
-						clusters = build_clusters
+						records_by_cluster = build_records_by_cluster
+						clusters = build_clusters(records_by_cluster)
 						
-						clusters.each_key do |cluster|
-							@control_plane.update_cluster(cluster) unless @published_clusters.key?(cluster)
-							@published_clusters[cluster] = true
+						records_by_cluster.each do |cluster, records|
+							configuration = cluster_configuration(records)
+							
+							unless @published_clusters[cluster] == configuration
+								@control_plane.update_cluster(cluster, **configuration)
+								@published_clusters[cluster] = configuration
+							end
 						end
 						
 						(@published_clusters.keys | clusters.keys).each do |cluster|
@@ -141,14 +147,29 @@ module Async
 						end
 					end
 					
-					def build_clusters
+					def build_records_by_cluster
 						@controllers.each_value.flat_map do |controller|
 							build_records(controller)
 						end.group_by do |record|
 							record[:cluster]
-						end.transform_values do |records|
+						end
+					end
+					
+					def build_clusters(records_by_cluster = build_records_by_cluster)
+						records_by_cluster.transform_values do |records|
 							records.map{|record| record[:endpoint].to_h}
 						end
+					end
+					
+					def cluster_configuration(records)
+						schemes = records.filter_map{|record| record[:scheme]}.uniq
+						protocols = records.filter_map{|record| record[:protocol]}.map(&:to_sym).uniq
+						
+						raise ArgumentError, "Envoy cluster contains incompatible schemes: #{schemes.inspect}" if schemes.size > 1
+						raise ArgumentError, "Envoy cluster contains incompatible protocols: #{protocols.inspect}" if protocols.size > 1
+						raise ArgumentError, "HTTPS upstream endpoints are not yet supported!" if schemes.first == :https
+						
+						{protocol: protocols.first || :http2}
 					end
 				end
 			end

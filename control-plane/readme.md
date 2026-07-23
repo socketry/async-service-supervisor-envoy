@@ -3,7 +3,7 @@
 This scenario exercises the intended Envoy control plane topology:
 
 - Falcon workers register with `Async::Service::Supervisor::Worker`.
-- Each worker publishes `state[:endpoint]` with an `address` and `port`.
+- Each worker publishes `state[:endpoint]` with its name, scheme, protocol, and concrete addresses.
 - `Async::Service::Supervisor::Envoy::Monitor` maps supervisor state into xDS endpoint resources.
 - Envoy connects to the supervisor's xDS server and subscribes to endpoint updates.
 - Envoy routes HTTP traffic to the supervised Falcon workers.

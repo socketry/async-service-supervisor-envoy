@@ -5,28 +5,24 @@
 
 require_relative "endpoint"
 
-# @namespace
 module Async
-	# @namespace
 	module Service
-		# @namespace
 		module Supervisor
-			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
-				# Maps supervisor controller state into Envoy endpoint records.
+				# Maps supervisor state into Envoy upstream endpoints.
 				class Delegate
-					# Extract endpoint state from the supervisor controller.
+					# Extract serialized endpoints from a supervisor controller.
 					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
-					# @returns [Endpoint | Array(Endpoint) | Hash | Array(Hash) | Nil] The endpoint state to publish.
+					# @returns [Hash | Array(Hash) | Nil] The serialized endpoint state.
 					def endpoints(supervisor_controller)
 						state = supervisor_controller.state
 						
 						state[:endpoints] || state["endpoints"] || state[:endpoint] || state["endpoint"]
 					end
 					
-					# Convert endpoint state into endpoint values.
+					# Convert serialized state into Envoy endpoint values.
 					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
-					# @returns [Array(Endpoint)] The endpoints to publish.
+					# @returns [Array(Endpoint)] The upstream endpoints to publish.
 					def endpoint_list(supervisor_controller)
 						case endpoints = self.endpoints(supervisor_controller)
 						when nil
@@ -43,9 +39,7 @@ module Async
 					# @parameter endpoint [Endpoint] The endpoint being published.
 					# @returns [String | Nil] The cluster name, or nil to skip the endpoint.
 					def cluster(supervisor_controller, endpoint)
-						state = supervisor_controller.state
-						
-						endpoint.name || state[:name] || state["name"]
+						endpoint.name
 					end
 					
 					# Determine whether an endpoint should be published as healthy.
