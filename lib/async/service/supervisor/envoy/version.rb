@@ -9,10 +9,9 @@ module Async
 	module Service
 		# @namespace
 		module Supervisor
-			# Provides Envoy integration for supervisor-managed services.
+			# @namespace
 			module Envoy
-				# The current version of the gem.
-				VERSION = "0.1.0"
+				VERSION = "0.0.0"
 			end
 		end
 	end
