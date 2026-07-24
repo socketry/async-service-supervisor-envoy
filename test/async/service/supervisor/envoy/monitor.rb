@@ -111,28 +111,6 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(monitor.as_json[:clusters]).to have_keys("service-a", "service-b")
 	end
 	
-	it "accepts string keyed endpoint state" do
-		monitor.register(Controller.new(1, {
-			"endpoint" => {
-				"name" => "myservice",
-				"scheme" => "http",
-				"protocols" => ["h2"],
-				"addresses" => [{"address" => "127.0.0.1", "port" => 50051}],
-			}
-		}))
-		
-		expect(monitor.as_json).to be == {
-			clusters: {
-				"myservice" => [
-					{
-						addresses: [{address: "127.0.0.1", port: 50051}],
-						healthy: true
-					}
-				]
-			}
-		}
-	end
-	
 	it "publishes multiple endpoints from one worker" do
 		monitor.register(Controller.new(1, {
 			endpoints: [
@@ -276,11 +254,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(endpoint.scheme).to be == :http
 		expect(endpoint.protocols).to be == ["h2"]
 		expect(endpoint.protocols.frozen?).to be == true
-		expect(endpoint.healthy?).to be == true
-		expect(endpoint.to_h).to be == {
-			addresses: [{path: "/tmp/api.ipc"}],
-			healthy: true,
-		}
+		expect(endpoint.addresses).to be == [{path: "/tmp/api.ipc"}]
 	end
 	
 	it "returns endpoint instances unchanged" do

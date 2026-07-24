@@ -17,7 +17,7 @@ module Async
 					def endpoints(supervisor_controller)
 						state = supervisor_controller.state
 						
-						state[:endpoints] || state["endpoints"] || state[:endpoint] || state["endpoint"]
+						state[:endpoints] || state[:endpoint]
 					end
 					
 					# Convert serialized state into Envoy endpoint values.

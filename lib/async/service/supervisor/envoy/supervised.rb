@@ -28,18 +28,21 @@ module Async
 							name: listener.name,
 							scheme: listener.scheme,
 							protocols: listener.protocols,
-							addresses: listener.addresses.filter_map{|address| envoy_address(address)},
+							addresses: listener.addresses.map{|address| envoy_address(address)},
 						}
 					end
 					
 					# Convert a concrete bound address to serializable supervisor state.
 					# @parameter address [Addrinfo] The bound address.
-					# @returns [Hash | Nil] The serialized address, or nil if unsupported.
+					# @returns [Hash] The serialized address.
+					# @raises [ArgumentError] If the address family is unsupported.
 					def envoy_address(address)
 						if address.ip?
 							{address: address.ip_address, port: address.ip_port}
 						elsif address.unix?
 							{path: address.unix_path}
+						else
+							raise ArgumentError, "Unsupported listener address: #{address.inspect}"
 						end
 					end
 				end

@@ -42,4 +42,14 @@ describe Async::Service::Supervisor::Envoy::Supervised do
 		
 		evaluator.prepare_worker!(instance, listener: listener)
 	end
+	
+	it "rejects unsupported listener addresses" do
+		address = Object.new
+		address.define_singleton_method(:ip?){false}
+		address.define_singleton_method(:unix?){false}
+		
+		expect do
+			evaluator.envoy_address(address)
+		end.to raise_exception(ArgumentError)
+	end
 end

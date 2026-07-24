@@ -109,17 +109,9 @@ module Async
 						return unless cluster
 						
 						{
-							controller: supervisor_controller,
 							cluster: cluster.to_s,
-							scheme: endpoint.scheme,
-							protocols: endpoint.protocols,
-							endpoint: Endpoint.new(
-								name: endpoint.name,
-								scheme: endpoint.scheme,
-								protocols: endpoint.protocols,
-								addresses: endpoint.addresses,
-								healthy: @delegate.healthy?(supervisor_controller, endpoint)
-							)
+							endpoint: endpoint,
+							healthy: @delegate.healthy?(supervisor_controller, endpoint),
 						}
 					end
 					
@@ -157,13 +149,15 @@ module Async
 					
 					def build_clusters(records_by_cluster = build_records_by_cluster)
 						records_by_cluster.transform_values do |records|
-							records.map{|record| record[:endpoint].to_h}
+							records.map do |record|
+								{addresses: record[:endpoint].addresses, healthy: record[:healthy]}
+							end
 						end
 					end
 					
 					def cluster_configuration(records)
-						schemes = records.filter_map{|record| record[:scheme]}.uniq
-						protocols = records.map{|record| record[:protocols]}
+						schemes = records.map{|record| record[:endpoint].scheme}.uniq
+						protocols = records.map{|record| record[:endpoint].protocols}
 						common_protocols = protocols.reduce{|common, names| common & names}
 						
 						raise ArgumentError, "Envoy cluster contains incompatible schemes: #{schemes.inspect}" if schemes.size > 1

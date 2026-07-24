@@ -17,11 +17,7 @@ module Async
 						when self
 							value
 						when Hash
-							attributes = value.each_with_object({}) do |(key, item), result|
-								result[key.to_sym] = item
-							end
-							
-							new(**attributes)
+							new(**value)
 						else
 							raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
 						end
@@ -31,10 +27,6 @@ module Async
 					# @parameter value [Hash] The address value.
 					# @returns [Hash] A normalized IP or Unix address.
 					def self.normalize_address(value)
-						value = value.each_with_object({}) do |(key, item), result|
-							result[key.to_sym] = item
-						end
-						
 						if path = value[:path]
 							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
 							
@@ -51,16 +43,13 @@ module Async
 					# @parameter scheme [String | Symbol] The upstream application scheme.
 					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
-					# @parameter healthy [Boolean] Whether the endpoint is healthy.
-					def initialize(name:, scheme:, protocols:, addresses:, healthy: true)
+					def initialize(name:, scheme:, protocols:, addresses:)
 						@name = name.to_s
 						@scheme = scheme.to_sym
 						@protocols = protocols.map(&:to_s).uniq.freeze
 						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
 						@addresses = addresses.map{|value| self.class.normalize_address(value)}.freeze
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
-						
-						@healthy = healthy
 					end
 					
 					# @attribute [String] The upstream cluster name.
@@ -75,17 +64,6 @@ module Async
 					# @attribute [Array(Hash)] The grouped concrete addresses.
 					attr :addresses
 					
-					# Whether the endpoint is healthy.
-					# @returns [Boolean] Whether the endpoint is healthy.
-					def healthy?
-						@healthy
-					end
-					
-					# Convert the endpoint to an xDS control-plane hash.
-					# @returns [Hash] The endpoint attributes.
-					def to_h
-						{addresses: @addresses, healthy: @healthy}
-					end
 				end
 			end
 		end
