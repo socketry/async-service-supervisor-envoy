@@ -30,7 +30,7 @@ state = {
 	endpoint: {
 		name: "myservice",
 		scheme: :http,
-		protocol: :http1,
+		protocols: ["http/1.1"],
 		addresses: [
 			{address: "127.0.0.1", port: 50051},
 			{path: "/run/myservice/worker.ipc"}
@@ -50,7 +50,7 @@ service "application" do
 end
 ```
 
-Falcon describes its bound server resource as a listener. The integration converts that listener into Envoy upstream endpoint state, including its name, scheme, protocol, and every concrete IP or Unix socket address. Addresses belonging to one listener remain grouped as one Envoy load-balancer endpoint.
+Falcon describes its bound server resource as a listener. The integration converts that listener into Envoy upstream endpoint state, including its name, scheme, supported protocols, and every concrete IP or Unix socket address. Addresses belonging to one listener remain grouped as one Envoy load-balancer endpoint.
 
 ## Monitor Usage
 

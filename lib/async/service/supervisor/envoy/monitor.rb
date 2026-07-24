@@ -112,11 +112,11 @@ module Async
 							controller: supervisor_controller,
 							cluster: cluster.to_s,
 							scheme: endpoint.scheme,
-							protocol: endpoint.protocol,
+							protocols: endpoint.protocols,
 							endpoint: Endpoint.new(
 								name: endpoint.name,
 								scheme: endpoint.scheme,
-								protocol: endpoint.protocol,
+								protocols: endpoint.protocols,
 								addresses: endpoint.addresses,
 								healthy: @delegate.healthy?(supervisor_controller, endpoint)
 							)
@@ -163,13 +163,27 @@ module Async
 					
 					def cluster_configuration(records)
 						schemes = records.filter_map{|record| record[:scheme]}.uniq
-						protocols = records.filter_map{|record| record[:protocol]}.map(&:to_sym).uniq
+						protocols = records.map{|record| record[:protocols]}
+						common_protocols = protocols.reduce{|common, names| common & names}
 						
 						raise ArgumentError, "Envoy cluster contains incompatible schemes: #{schemes.inspect}" if schemes.size > 1
-						raise ArgumentError, "Envoy cluster contains incompatible protocols: #{protocols.inspect}" if protocols.size > 1
+						raise ArgumentError, "Envoy cluster contains no common protocols: #{protocols.inspect}" if common_protocols.empty?
 						raise ArgumentError, "HTTPS upstream endpoints are not yet supported!" if schemes.first == :https
 						
-						{protocol: protocols.first || :http2}
+						{protocol: envoy_protocol(common_protocols)}
+					end
+					
+					def envoy_protocol(protocols)
+						protocols.each do |protocol|
+							case protocol
+							when "h2"
+								return :http2
+							when "http/1.1", "http/1.0"
+								return :http1
+							end
+						end
+						
+						raise ArgumentError, "Envoy cluster contains no supported protocols: #{protocols.inspect}"
 					end
 				end
 			end

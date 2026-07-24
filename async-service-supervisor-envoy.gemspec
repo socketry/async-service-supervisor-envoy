@@ -27,5 +27,5 @@ Gem::Specification.new do |spec|
 	spec.add_dependency "async", "~> 2.38"
 	spec.add_dependency "async-grpc-xds"
 	spec.add_dependency "async-http"
-	spec.add_dependency "async-service-supervisor"
+	spec.add_dependency "async-service-supervisor", "~> 0.18"
 end

@@ -49,13 +49,14 @@ module Async
 					# Initialize an endpoint.
 					# @parameter name [String] The upstream cluster name.
 					# @parameter scheme [String | Symbol] The upstream application scheme.
-					# @parameter protocol [String | Symbol] The upstream HTTP protocol.
+					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					# @parameter healthy [Boolean] Whether the endpoint is healthy.
-					def initialize(name:, scheme:, protocol:, addresses:, healthy: true)
+					def initialize(name:, scheme:, protocols:, addresses:, healthy: true)
 						@name = name.to_s
 						@scheme = scheme.to_sym
-						@protocol = protocol.to_sym
+						@protocols = protocols.map(&:to_s).uniq.freeze
+						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
 						@addresses = addresses.map{|value| self.class.normalize_address(value)}.freeze
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
 						
@@ -68,8 +69,8 @@ module Async
 					# @attribute [Symbol] The upstream application scheme.
 					attr :scheme
 					
-					# @attribute [Symbol] The upstream HTTP protocol.
-					attr :protocol
+					# @attribute [Array(String)] The supported upstream HTTP protocol names.
+					attr :protocols
 					
 					# @attribute [Array(Hash)] The grouped concrete addresses.
 					attr :addresses

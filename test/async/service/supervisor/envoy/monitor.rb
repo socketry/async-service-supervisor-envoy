@@ -23,7 +23,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "publishes registered endpoints" do
 		controller = Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		})
 		
 		monitor.register(controller)
@@ -41,7 +41,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			endpoint: {
 				name: "myservice",
 				scheme: "http",
-				protocol: "http1",
+				protocols: ["http/1.1"],
 				addresses: [{path: "/tmp/falcon.ipc"}],
 			}
 		})
@@ -62,7 +62,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			endpoint: {
 				name: "myservice",
 				scheme: "http",
-				protocol: "http2",
+				protocols: ["h2"],
 				addresses: [
 					{address: "127.0.0.1", port: 9292},
 					{path: "/tmp/falcon.ipc"},
@@ -89,7 +89,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "removes disconnected workers from endpoints" do
 		controller = Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		})
 		
 		monitor.register(controller)
@@ -102,10 +102,10 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "groups workers by service name" do
 		monitor.register(Controller.new(1, {
-			endpoint: {name: "service-a", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]}
+			endpoint: {name: "service-a", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		}))
 		monitor.register(Controller.new(2, {
-			endpoint: {name: "service-b", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.2", port: 50052}]}
+			endpoint: {name: "service-b", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.2", port: 50052}]}
 		}))
 		
 		expect(monitor.as_json[:clusters]).to have_keys("service-a", "service-b")
@@ -116,7 +116,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			"endpoint" => {
 				"name" => "myservice",
 				"scheme" => "http",
-				"protocol" => "http2",
+				"protocols" => ["h2"],
 				"addresses" => [{"address" => "127.0.0.1", "port" => 50051}],
 			}
 		}))
@@ -136,8 +136,8 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	it "publishes multiple endpoints from one worker" do
 		monitor.register(Controller.new(1, {
 			endpoints: [
-				{name: "api-http1", scheme: "http", protocol: "http1", addresses: [{address: "127.0.0.1", port: 50050}]},
-				{name: "api-http2", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]}
+				{name: "api-http1", scheme: "http", protocols: ["http/1.1"], addresses: [{address: "127.0.0.1", port: 50050}]},
+				{name: "api-http2", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 			]
 		}))
 		
@@ -161,12 +161,12 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "updates published endpoints from controller state" do
 		controller = Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		})
 		
 		monitor.register(controller)
 		
-		controller.state[:endpoint] = {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.2", port: 50052}]}
+		controller.state[:endpoint] = {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.2", port: 50052}]}
 		monitor.run_once
 		
 		assignment = endpoint_assignment("myservice")
@@ -185,7 +185,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		
 		monitor = subject.new(delegate: delegate)
 		controller = Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]},
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]},
 			healthy: false
 		})
 		
@@ -209,7 +209,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		end.new
 		
 		controller = Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{address: "127.0.0.1", port: 50051}]},
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]},
 			healthy: true
 		})
 		
@@ -236,7 +236,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 					Async::Service::Supervisor::Envoy::Endpoint.new(
 						name: "ignored",
 						scheme: "http",
-						protocol: "http1",
+						protocols: ["http/1.1"],
 						addresses: [{address: "127.0.0.1", port: 50051}]
 					)
 				]
@@ -269,12 +269,13 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "wraps endpoint values" do
 		endpoint = Async::Service::Supervisor::Envoy::Endpoint.wrap(
-			{name: "api", scheme: "http", protocol: "http2", addresses: [{path: "/tmp/api.ipc"}]}
+			{name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]}
 		)
 		
 		expect(endpoint.name).to be == "api"
 		expect(endpoint.scheme).to be == :http
-		expect(endpoint.protocol).to be == :http2
+		expect(endpoint.protocols).to be == ["h2"]
+		expect(endpoint.protocols.frozen?).to be == true
 		expect(endpoint.to_h).to be == {
 			addresses: [{path: "/tmp/api.ipc"}],
 			healthy: true,
@@ -283,7 +284,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	it "returns endpoint instances unchanged" do
 		endpoint = Async::Service::Supervisor::Envoy::Endpoint.new(
-			name: "api", scheme: "http", protocol: "http2", addresses: [{path: "/tmp/api.ipc"}]
+			name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]
 		)
 		
 		expect(Async::Service::Supervisor::Envoy::Endpoint.wrap(endpoint)).to be == endpoint
@@ -295,14 +296,42 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		end.to raise_exception(ArgumentError)
 	end
 	
-	it "rejects incompatible endpoint protocols in one cluster" do
+	it "rejects endpoints without protocols" do
+		expect do
+			Async::Service::Supervisor::Envoy::Endpoint.new(
+				name: "api", scheme: "http", protocols: [], addresses: [{path: "/tmp/api.ipc"}]
+			)
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "selects the preferred common endpoint protocol" do
 		monitor.register(Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocol: "http1", addresses: [{path: "/tmp/one.ipc"}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2", "http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}
+		}))
+		monitor.register(Controller.new(2, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/two.ipc"}]}
+		}))
+		
+		cluster = control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
+		expect(cluster.http2_protocol_options).not.to be_nil
+	end
+	
+	it "rejects endpoints without a common protocol in one cluster" do
+		monitor.register(Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}
 		}))
 		
 		expect do
 			monitor.register(Controller.new(2, {
-				endpoint: {name: "myservice", scheme: "http", protocol: "http2", addresses: [{path: "/tmp/two.ipc"}]}
+				endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/two.ipc"}]}
+			}))
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "rejects unsupported endpoint protocols" do
+		expect do
+			monitor.register(Controller.new(1, {
+				endpoint: {name: "myservice", scheme: "http", protocols: ["unsupported"], addresses: [{path: "/tmp/one.ipc"}]}
 			}))
 		end.to raise_exception(ArgumentError)
 	end

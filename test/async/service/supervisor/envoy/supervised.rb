@@ -20,17 +20,17 @@ describe Async::Service::Supervisor::Envoy::Supervised do
 		instance = Object.new
 		evaluator.define_singleton_method(:prepare!) do |*_arguments, **_options|
 		end
-		listener = Struct.new(:name, :scheme, :protocol, :addresses).new(
+		listener = Struct.new(:name, :scheme, :protocols, :addresses).new(
 			"hello",
 			"http",
-			Async::HTTP::Protocol::HTTP2,
+			["h2", "http/1.1"],
 			[Addrinfo.tcp("127.0.0.1", 9292), Addrinfo.unix("/tmp/hello.ipc")]
 		)
 		state = {
 			endpoint: {
 				name: "hello",
 				scheme: "http",
-				protocol: :http2,
+				protocols: ["h2", "http/1.1"],
 				addresses: [
 					{address: "127.0.0.1", port: 9292},
 					{path: "/tmp/hello.ipc"},

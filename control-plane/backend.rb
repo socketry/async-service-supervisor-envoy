@@ -53,8 +53,7 @@ Sync do |task|
 			}
 		}
 	)
-		
+	
 	worker.run
 	server.run
 end
-	

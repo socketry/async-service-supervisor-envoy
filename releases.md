@@ -4,7 +4,7 @@
 
   - Register concrete Falcon cluster listeners as Envoy upstream endpoint state after binding.
   - Publish grouped IP and Unix-domain-socket endpoint addresses to Envoy.
-  - Configure generated clusters for each endpoint's HTTP protocol.
+  - Configure generated clusters from each endpoint's supported HTTP protocol names.
 
 ## v0.1.0
 
