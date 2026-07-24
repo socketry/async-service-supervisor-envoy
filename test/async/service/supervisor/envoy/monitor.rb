@@ -276,6 +276,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(endpoint.scheme).to be == :http
 		expect(endpoint.protocols).to be == ["h2"]
 		expect(endpoint.protocols.frozen?).to be == true
+		expect(endpoint.healthy?).to be == true
 		expect(endpoint.to_h).to be == {
 			addresses: [{path: "/tmp/api.ipc"}],
 			healthy: true,
@@ -300,6 +301,14 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect do
 			Async::Service::Supervisor::Envoy::Endpoint.new(
 				name: "api", scheme: "http", protocols: [], addresses: [{path: "/tmp/api.ipc"}]
+			)
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "rejects invalid endpoint addresses" do
+		expect do
+			Async::Service::Supervisor::Envoy::Endpoint.new(
+				name: "api", scheme: "http", protocols: ["h2"], addresses: [{}]
 			)
 		end.to raise_exception(ArgumentError)
 	end
