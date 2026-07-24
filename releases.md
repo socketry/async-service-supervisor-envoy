@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.0.1
 
   - Register concrete Falcon cluster listeners as Envoy upstream endpoint state after binding.
   - Publish grouped IP and Unix-domain-socket endpoint addresses to Envoy.
