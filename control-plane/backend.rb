@@ -48,7 +48,7 @@ Sync do |task|
 			endpoint: {
 				name: service_name,
 				scheme: :http,
-				protocol: :http1,
+				protocols: [Async::HTTP::Protocol::HTTP1.name],
 				addresses: [{address: backend_address, port: backend_port}],
 			}
 		}
