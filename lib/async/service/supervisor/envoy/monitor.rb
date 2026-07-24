@@ -11,11 +11,8 @@ require "async/grpc/xds/server"
 require_relative "delegate"
 require_relative "endpoint"
 
-# @namespace
 module Async
-	# @namespace
 	module Service
-		# @namespace
 		module Supervisor
 			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
