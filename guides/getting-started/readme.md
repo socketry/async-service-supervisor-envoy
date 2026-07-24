@@ -21,21 +21,36 @@ The gem depends on `async-service-supervisor` and `async-grpc-xds`.
 
 The monitor runs an xDS control plane endpoint. Envoy connects to it using ADS and receives CDS/EDS updates derived from supervisor worker state.
 
-## Worker State
+## Endpoint State
 
-Workers are published when they register with `state[:endpoint]`:
+Workers are published when they register concrete endpoint state:
 
 ``` ruby
 state = {
-	name: "myservice",
 	endpoint: {
-		address: "127.0.0.1",
-		port: 50051
+		name: "myservice",
+		scheme: :http,
+		protocols: ["http/1.1"],
+		addresses: [
+			{address: "127.0.0.1", port: 50051},
+			{path: "/run/myservice/worker.ipc"}
+		]
 	}
 }
 ```
 
-Workers without `state[:endpoint]` are ignored by the Envoy monitor.
+Workers without endpoint state are ignored by the Envoy monitor.
+
+Falcon cluster workers can register their concrete post-bind listener automatically:
+
+``` ruby
+service "application" do
+	include Falcon::Environment::Cluster
+	include Async::Service::Supervisor::Envoy::Supervised
+end
+```
+
+Falcon describes its bound server resource as a listener. The integration converts that listener into Envoy upstream endpoint state, including its name, scheme, supported protocols, and every concrete IP or Unix socket address. Addresses belonging to one listener remain grouped as one Envoy load-balancer endpoint.
 
 ## Monitor Usage
 

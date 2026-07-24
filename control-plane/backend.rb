@@ -45,15 +45,15 @@ Sync do |task|
 	worker = Async::Service::Supervisor::Worker.new(
 		endpoint: supervisor_endpoint,
 		state: {
-			name: service_name,
 			endpoint: {
-				address: backend_address,
-				port: backend_port
+				name: service_name,
+				scheme: :http,
+				protocols: Async::HTTP::Protocol::HTTP1.names,
+				addresses: [{address: backend_address, port: backend_port}],
 			}
 		}
 	)
-		
+	
 	worker.run
 	server.run
 end
-	

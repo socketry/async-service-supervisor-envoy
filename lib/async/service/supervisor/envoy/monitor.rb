@@ -11,11 +11,8 @@ require "async/grpc/xds/server"
 require_relative "delegate"
 require_relative "endpoint"
 
-# @namespace
 module Async
-	# @namespace
 	module Service
-		# @namespace
 		module Supervisor
 			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
@@ -106,19 +103,12 @@ module Async
 					
 					def build_record(supervisor_controller, endpoint)
 						cluster = @delegate.cluster(supervisor_controller, endpoint)
-						return unless cluster && endpoint
+						return unless cluster
 						
 						{
-							controller: supervisor_controller,
 							cluster: cluster.to_s,
-							endpoint: Endpoint.new(
-								name: endpoint.name,
-								address: endpoint.address,
-								port: endpoint.port,
-								hostname: endpoint.hostname,
-								protocol: endpoint.protocol,
-								healthy: @delegate.healthy?(supervisor_controller, endpoint)
-							)
+							endpoint: endpoint,
+							healthy: @delegate.healthy?(supervisor_controller, endpoint),
 						}
 					end
 					
@@ -129,11 +119,16 @@ module Async
 					end
 					
 					def reconcile
-						clusters = build_clusters
+						records_by_cluster = build_records_by_cluster
+						clusters = build_clusters(records_by_cluster)
 						
-						clusters.each_key do |cluster|
-							@control_plane.update_cluster(cluster) unless @published_clusters.key?(cluster)
-							@published_clusters[cluster] = true
+						records_by_cluster.each do |cluster, records|
+							configuration = cluster_configuration(records)
+							
+							unless @published_clusters[cluster] == configuration
+								@control_plane.update_cluster(cluster, **configuration)
+								@published_clusters[cluster] = configuration
+							end
 						end
 						
 						(@published_clusters.keys | clusters.keys).each do |cluster|
@@ -141,14 +136,45 @@ module Async
 						end
 					end
 					
-					def build_clusters
+					def build_records_by_cluster
 						@controllers.each_value.flat_map do |controller|
 							build_records(controller)
 						end.group_by do |record|
 							record[:cluster]
-						end.transform_values do |records|
-							records.map{|record| record[:endpoint].to_h}
 						end
+					end
+					
+					def build_clusters(records_by_cluster = build_records_by_cluster)
+						records_by_cluster.transform_values do |records|
+							records.map do |record|
+								{addresses: record[:endpoint].addresses, healthy: record[:healthy]}
+							end
+						end
+					end
+					
+					def cluster_configuration(records)
+						schemes = records.map{|record| record[:endpoint].scheme}.uniq
+						protocols = records.map{|record| record[:endpoint].protocols}
+						common_protocols = protocols.reduce{|common, names| common & names}
+						
+						raise ArgumentError, "Envoy cluster contains incompatible schemes: #{schemes.inspect}" if schemes.size > 1
+						raise ArgumentError, "Envoy cluster contains no common protocols: #{protocols.inspect}" if common_protocols.empty?
+						raise ArgumentError, "HTTPS upstream endpoints are not yet supported!" if schemes.first == :https
+						
+						{protocol: envoy_protocol(common_protocols)}
+					end
+					
+					def envoy_protocol(protocols)
+						protocols.each do |protocol|
+							case protocol
+							when "h2"
+								return :http2
+							when "http/1.1", "http/1.0"
+								return :http1
+							end
+						end
+						
+						raise ArgumentError, "Envoy cluster contains no supported protocols: #{protocols.inspect}"
 					end
 				end
 			end

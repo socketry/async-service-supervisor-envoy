@@ -11,7 +11,7 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
   - **xDS control plane** - Runs an ADS server backed by `async-grpc-xds`.
   - **Supervisor integration** - Registers and removes endpoints from supervisor worker lifecycle events.
   - **Multiple clusters** - Groups workers by `state[:name]` by default.
-  - **Endpoint contract** - Publishes workers with `state[:endpoint]` and ignores workers without endpoints.
+  - **Endpoint contract** - Converts concrete post-bind worker listeners into Envoy upstream endpoints, including grouped IP or Unix socket addresses.
   - **Delegate mapping** - Uses a delegate object for endpoint selection, cluster grouping, and health without active probing.
 
 ## Usage

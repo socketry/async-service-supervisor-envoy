@@ -3,93 +3,67 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
-# @namespace
 module Async
-	# @namespace
 	module Service
-		# @namespace
 		module Supervisor
-			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
-				# Represents an endpoint published to Envoy EDS.
+				# Represents one upstream endpoint published to Envoy EDS.
 				class Endpoint
-					# Wrap an endpoint-like value.
-					# @parameter value [Endpoint | Hash | Object | Nil] The endpoint value to wrap.
-					# @returns [Endpoint | Nil] The wrapped endpoint, or `nil` if no endpoint was supplied.
-					# @raises [ArgumentError] If the value cannot be converted to an endpoint.
+					# Wrap serialized endpoint state.
+					# @parameter value [Endpoint | Hash] The value to wrap.
+					# @returns [Endpoint] The endpoint value.
 					def self.wrap(value)
 						case value
-						when nil
-							nil
 						when self
 							value
 						when Hash
-							new(**symbolize_keys(value))
+							new(**value)
 						else
 							raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
 						end
 					end
 					
-					# Convert hash keys to symbols.
-					# @parameter hash [Hash] The hash to convert.
-					# @returns [Hash] A copy of the hash with symbol keys.
-					def self.symbolize_keys(hash)
-						hash.each_with_object({}) do |(key, value), result|
-							result[key.to_sym] = value
+					# Normalize a concrete endpoint address.
+					# @parameter value [Hash] The address value.
+					# @returns [Hash] A normalized IP or Unix address.
+					def self.normalize_address(value)
+						if path = value[:path]
+							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
+							
+							{path: path.to_s}.freeze
+						elsif value[:address] && value[:port]
+							{address: value[:address].to_s, port: Integer(value[:port])}.freeze
+						else
+							raise ArgumentError, "An endpoint address requires either path, or address and port: #{value.inspect}"
 						end
 					end
 					
-					private_class_method :symbolize_keys
-					
-					# Initialize the endpoint.
-					# @parameter name [String | Nil] The optional endpoint name.
-					# @parameter address [String] The endpoint IP address or hostname.
-					# @parameter port [Integer] The endpoint port.
-					# @parameter hostname [String | Nil] The optional endpoint hostname.
-					# @parameter protocol [String | Symbol | Nil] The optional endpoint protocol.
-					# @parameter healthy [Boolean] Whether the endpoint should be published as healthy.
-					def initialize(address:, port:, name: nil, hostname: nil, protocol: nil, healthy: true)
-						@name = name
-						@address = address
-						@port = port.to_i
-						@hostname = hostname
-						@protocol = protocol
-						@healthy = healthy
+					# Initialize an endpoint.
+					# @parameter name [String] The upstream cluster name.
+					# @parameter scheme [String | Symbol] The upstream application scheme.
+					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
+					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
+					def initialize(name:, scheme:, protocols:, addresses:)
+						@name = name.to_s
+						@scheme = scheme.to_sym
+						@protocols = protocols.map(&:to_s).uniq.freeze
+						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
+						@addresses = addresses.map{|value| self.class.normalize_address(value)}.freeze
+						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
 					end
 					
-					# @attribute [String | Nil] The optional endpoint name.
+					# @attribute [String] The upstream cluster name.
 					attr :name
 					
-					# @attribute [String] The endpoint IP address or hostname.
-					attr :address
+					# @attribute [Symbol] The upstream application scheme.
+					attr :scheme
 					
-					# @attribute [Integer] The endpoint port.
-					attr :port
+					# @attribute [Array(String)] The supported upstream HTTP protocol names.
+					attr :protocols
 					
-					# @attribute [String | Nil] The optional endpoint hostname.
-					attr :hostname
+					# @attribute [Array(Hash)] The grouped concrete addresses.
+					attr :addresses
 					
-					# @attribute [String | Symbol | Nil] The optional endpoint protocol.
-					attr :protocol
-					
-					# Whether the endpoint is healthy.
-					# @returns [Boolean] Returns `true` when the endpoint should be published as healthy.
-					def healthy?
-						@healthy
-					end
-					
-					# Convert the endpoint to a hash suitable for the xDS control plane.
-					# @returns [Hash] The endpoint attributes.
-					def to_h
-						{
-							name: @name,
-							address: @address,
-							port: @port,
-							hostname: @hostname,
-							protocol: @protocol,
-							healthy: @healthy
-						}.compact
-					end
 				end
 			end
 		end
