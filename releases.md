@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Add Bake tasks for inspecting Envoy monitor status, clusters, and endpoints.
+
 ## v0.3.0
 
   - Add supervisor-driven out-of-band ORCA load reporting for independently addressable workers.
