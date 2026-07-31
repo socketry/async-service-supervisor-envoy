@@ -94,3 +94,34 @@ Async::Service::Supervisor::Envoy::Monitor.new(
 ```
 
 Disconnected workers are removed from EDS. Registered workers that fail the delegate health check remain in EDS with an unhealthy endpoint status.
+
+## Load-aware Balancing
+
+Enable out-of-band ORCA reporting to let Envoy weight independently bound workers using their current processor utilization and request throughput:
+
+``` ruby
+utilization_monitor = Async::Service::Supervisor::UtilizationMonitor.new(interval: 1)
+
+[
+	utilization_monitor,
+	Async::Service::Supervisor::Envoy::Monitor.new(
+		bind: "http://0.0.0.0:18000",
+		orca: true,
+		utilization_monitor: utilization_monitor,
+		interval: 1
+	)
+]
+```
+
+The supervisor utilization monitor manages each worker's shared-memory allocation and registration. The Envoy monitor samples it through `sample_by_worker`, combines each worker's `requests_total` counter with processor usage from `process-metrics`, and serves the resulting ORCA reports from the same HTTP/2 endpoint as ADS. It also configures each discovered cluster to use Envoy's client-side weighted-round-robin policy.
+
+The first sample establishes a baseline. Subsequent reports contain normalized `cpu_utilization` and `rps_fractional` values for each worker. Reports are removed immediately when a worker disconnects.
+
+Out-of-band ORCA requires:
+
+  - Envoy 1.39 or later.
+  - A fixed TCP port for the monitor's `bind` address.
+  - A supervisor utilization monitor registered alongside the Envoy monitor.
+  - Independently addressable TCP worker endpoints. Unix sockets and endpoints shared by several workers cannot provide distinct per-worker ORCA identities.
+
+The monitor address and worker addresses must be reachable from Envoy. In a sidecar deployment, binding the monitor to a fixed port in the shared network namespace satisfies this requirement.
