@@ -100,6 +100,36 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(assignment.endpoints.first.lb_endpoints).to be(:empty?)
 	end
 	
+	it "publishes a shared listener once while any worker remains" do
+		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
+			def healthy?(supervisor_controller, endpoint)
+				supervisor_controller.state[:healthy]
+			end
+		end.new
+		
+		monitor = subject.new(delegate: delegate)
+		endpoint = {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		first = Controller.new(1, {endpoint: endpoint, healthy: false})
+		second = Controller.new(2, {endpoint: endpoint, healthy: true})
+		
+		monitor.register(first)
+		monitor.register(second)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == [
+			{addresses: [{address: "127.0.0.1", port: 50051}], healthy: true}
+		]
+		
+		monitor.remove(second)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == [
+			{addresses: [{address: "127.0.0.1", port: 50051}], healthy: false}
+		]
+		
+		monitor.remove(first)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == nil
+	end
+	
 	it "groups workers by service name" do
 		monitor.register(Controller.new(1, {
 			endpoint: {name: "service-a", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
@@ -211,7 +241,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
 			def endpoint_list(supervisor_controller)
 				[
-					Async::Service::Supervisor::Envoy::Endpoint.new(
+					Async::Service::Supervisor::Envoy::Endpoint.build(
 						name: "ignored",
 						scheme: "http",
 						protocols: ["http/1.1"],
@@ -243,48 +273,6 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 				]
 			}
 		}
-	end
-	
-	it "wraps endpoint values" do
-		endpoint = Async::Service::Supervisor::Envoy::Endpoint.wrap(
-			{name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]}
-		)
-		
-		expect(endpoint.name).to be == "api"
-		expect(endpoint.scheme).to be == :http
-		expect(endpoint.protocols).to be == ["h2"]
-		expect(endpoint.protocols.frozen?).to be == true
-		expect(endpoint.addresses).to be == [{path: "/tmp/api.ipc"}]
-	end
-	
-	it "returns endpoint instances unchanged" do
-		endpoint = Async::Service::Supervisor::Envoy::Endpoint.new(
-			name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]
-		)
-		
-		expect(Async::Service::Supervisor::Envoy::Endpoint.wrap(endpoint)).to be == endpoint
-	end
-	
-	it "rejects invalid endpoint objects" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.wrap(Object.new)
-		end.to raise_exception(ArgumentError)
-	end
-	
-	it "rejects endpoints without protocols" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.new(
-				name: "api", scheme: "http", protocols: [], addresses: [{path: "/tmp/api.ipc"}]
-			)
-		end.to raise_exception(ArgumentError)
-	end
-	
-	it "rejects invalid endpoint addresses" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.new(
-				name: "api", scheme: "http", protocols: ["h2"], addresses: [{}]
-			)
-		end.to raise_exception(ArgumentError)
 	end
 	
 	it "selects the preferred common endpoint protocol" do

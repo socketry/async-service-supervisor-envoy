@@ -9,7 +9,7 @@ module Async
 	module Service
 		module Supervisor
 			module Envoy
-				# Registers post-bind cluster listeners with the supervisor.
+				# Registers bound Falcon listeners with the supervisor.
 				module Supervised
 					include Async::Service::Supervisor::Supervised
 					

@@ -24,6 +24,10 @@ Please see the [project documentation](https://socketry.github.io/async-service-
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
 
+### Unreleased
+
+  - Deduplicate shared listener endpoints reported by multiple supervised workers.
+
 ### v0.0.1
 
   - Register concrete Falcon cluster listeners as Envoy upstream endpoint state after binding.

@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
+
 ## v0.0.1
 
   - Register concrete Falcon cluster listeners as Envoy upstream endpoint state after binding.

@@ -10,6 +10,7 @@ require "async/grpc/xds/server"
 
 require_relative "delegate"
 require_relative "endpoint"
+require_relative "endpoint_group"
 
 module Async
 	module Service
@@ -108,6 +109,7 @@ module Async
 						{
 							cluster: cluster.to_s,
 							endpoint: endpoint,
+							worker: supervisor_controller,
 							healthy: @delegate.healthy?(supervisor_controller, endpoint),
 						}
 					end
@@ -146,9 +148,14 @@ module Async
 					
 					def build_clusters(records_by_cluster = build_records_by_cluster)
 						records_by_cluster.transform_values do |records|
-							records.map do |record|
-								{addresses: record[:endpoint].addresses, healthy: record[:healthy]}
+							groups = {}
+							
+							records.each do |record|
+								group = groups[record[:endpoint]] ||= EndpointGroup.new(record[:endpoint])
+								group.add(record[:worker], healthy: record[:healthy])
 							end
+							
+							groups.each_value.map(&:as_json)
 						end
 					end
 					
