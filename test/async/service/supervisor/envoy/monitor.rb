@@ -23,8 +23,6 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	
 	def utilization_monitor(samples = [])
 		Object.new.tap do |monitor|
-			monitor.define_singleton_method(:register){|controller|}
-			monitor.define_singleton_method(:remove){|controller|}
 			monitor.define_singleton_method(:sample_by_worker){samples.shift || {}}
 		end
 	end
@@ -119,6 +117,12 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	it "requires a fixed bind address for ORCA" do
 		expect do
 			subject.new(orca: true)
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "requires a utilization monitor for ORCA" do
+		expect do
+			subject.new(bind: "http://127.0.0.1:18000", orca: true)
 		end.to raise_exception(ArgumentError)
 	end
 	

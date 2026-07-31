@@ -5,7 +5,6 @@
 
 source "https://rubygems.org"
 
-gem "async-service-supervisor", github: "socketry/async-service-supervisor", branch: "expose-worker-utilization"
 gem "falcon"
 
 gemspec

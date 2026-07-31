@@ -30,7 +30,7 @@ module Async
 					# @parameter control_plane [Async::GRPC::XDS::ControlPlane] The xDS control plane to update.
 					# @parameter orca [Boolean] Whether to collect and serve per-worker ORCA load reports.
 					# @parameter processor [Process::Metrics::Processor | Nil] The optional process CPU sampler.
-					# @parameter utilization_monitor [Async::Service::Supervisor::UtilizationMonitor | Nil] The optional per-worker utilization monitor.
+					# @parameter utilization_monitor [Async::Service::Supervisor::UtilizationMonitor | Nil] The per-worker utilization monitor used for ORCA reporting.
 					# @parameter interval [Numeric] The endpoint reconciliation and ORCA reporting interval in seconds.
 					def initialize(
 						bind: nil,
@@ -56,12 +56,13 @@ module Async
 						
 						if @orca
 							raise ArgumentError, "ORCA reporting requires a TCP bind address!" unless @bind
+							raise ArgumentError, "ORCA reporting requires a utilization monitor!" unless utilization_monitor
 							
 							@orca_port = server_endpoint.url.port
 							raise ArgumentError, "ORCA reporting requires a fixed TCP port!" unless @orca_port&.positive?
 							
 							@processor = processor || Process::Metrics::Processor.new
-							@utilization_monitor = utilization_monitor || Async::Service::Supervisor::UtilizationMonitor.new(interval: interval)
+							@utilization_monitor = utilization_monitor
 							@request_totals = {}
 							@load_reports = {}
 							@authorities = {}
@@ -78,8 +79,6 @@ module Async
 					# @parameter supervisor_controller [Object] The supervisor controller describing the worker.
 					# @returns [void]
 					def register(supervisor_controller)
-						@utilization_monitor&.register(supervisor_controller)
-						
 						@mutex.synchronize do
 							@controllers[supervisor_controller.id] = supervisor_controller
 							@authorities[worker_hostname(supervisor_controller)] = supervisor_controller.id if @orca
@@ -101,8 +100,6 @@ module Async
 							end
 							reconcile
 						end
-						
-						@utilization_monitor&.remove(supervisor_controller)
 					end
 					
 					# Run the monitor and optional xDS server task.
