@@ -17,9 +17,9 @@ module Async
 					# @returns [Endpoint] The immutable endpoint.
 					def self.build(name:, scheme:, protocols:, addresses:)
 						new(
-							name.to_s.dup.freeze,
+							name.to_s.freeze,
 							scheme.to_sym,
-							protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze,
+							protocols.map{|protocol| protocol.to_s.freeze}.uniq.freeze,
 							addresses.map{|value| normalize_address(value)}.freeze,
 						).tap(&:freeze)
 					end
@@ -45,9 +45,9 @@ module Async
 						if path = value[:path]
 							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
 							
-							{path: path.to_s.dup.freeze}.freeze
+							{path: path.to_s.freeze}.freeze
 						elsif value[:address] && value[:port]
-							{address: value[:address].to_s.dup.freeze, port: Integer(value[:port])}.freeze
+							{address: value[:address].to_s.freeze, port: Integer(value[:port])}.freeze
 						else
 							raise ArgumentError, "An endpoint address requires either path, or address and port: #{value.inspect}"
 						end
