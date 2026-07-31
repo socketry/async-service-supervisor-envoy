@@ -65,6 +65,8 @@ module Async
 						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
 						@addresses = addresses
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
+						
+						@hash = nil
 					end
 					
 					# @attribute [String] The upstream cluster name.
