@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.1.0
 
   - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
 

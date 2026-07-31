@@ -24,9 +24,9 @@ Please see the [project documentation](https://socketry.github.io/async-service-
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
 
-### Unreleased
+### v0.1.0
 
-  - Deduplicate shared listener endpoints reported by multiple supervised workers.
+  - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
 
 ### v0.0.1
 
@@ -36,7 +36,7 @@ Please see the [project releases](https://socketry.github.io/async-service-super
 
 ### v0.1.0
 
-  - Initial release.
+  - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
 
 ## See Also
 
