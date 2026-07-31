@@ -40,7 +40,7 @@ describe Async::Service::Supervisor::Envoy::Supervised do
 		
 		expect(evaluator).to receive(:prepare!).with(instance, state: state)
 		
-		evaluator.prepare_worker!(instance, listener: listener)
+		evaluator.prepare_worker!(instance, listener)
 	end
 	
 	it "rejects unsupported listener addresses" do

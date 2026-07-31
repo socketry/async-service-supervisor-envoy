@@ -16,7 +16,7 @@ module Async
 					# Prepare and register a worker after its listener has been bound.
 					# @parameter instance [Async::Container::Instance] The container instance.
 					# @parameter listener [Object] The bound listener descriptor.
-					def prepare_worker!(instance, listener:)
+					def prepare_worker!(instance, listener)
 						prepare!(instance, state: {endpoint: envoy_endpoint(listener)})
 					end
 					

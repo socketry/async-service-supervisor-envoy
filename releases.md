@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Accept the required Falcon listener as a positional worker preparation argument.
+
 ## v0.1.0
 
   - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
