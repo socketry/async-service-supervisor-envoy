@@ -13,6 +13,7 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
   - **Multiple clusters** - Groups workers by `state[:name]` by default.
   - **Endpoint contract** - Converts concrete post-bind worker listeners into Envoy upstream endpoints, including grouped IP or Unix socket addresses.
   - **Delegate mapping** - Uses a delegate object for endpoint selection, cluster grouping, and health without active probing.
+  - **Load-aware balancing** - Optionally reports per-worker CPU utilization and request throughput to Envoy using out-of-band ORCA.
 
 ## Usage
 
