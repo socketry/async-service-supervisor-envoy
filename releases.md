@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.2.0
 
   - Accept the required Falcon listener as a positional worker preparation argument.
 
