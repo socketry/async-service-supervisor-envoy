@@ -17,8 +17,9 @@ describe "Envoy control plane" do
 		
 		while Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
 			begin
-				result = yield
-				return result if result
+				if result = yield
+					return result
+				end
 			rescue => error
 			end
 			
