@@ -99,8 +99,6 @@ module Async
 					def hash
 						@hash
 					end
-					
-					private_class_method :new
 				end
 			end
 		end
