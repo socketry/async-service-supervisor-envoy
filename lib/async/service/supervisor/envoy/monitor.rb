@@ -146,8 +146,8 @@ module Async
 					
 					def build_clusters(records_by_cluster = build_records_by_cluster)
 						records_by_cluster.transform_values do |records|
-							records.map do |record|
-								{addresses: record[:endpoint].addresses, healthy: record[:healthy]}
+							records.group_by{|record| record[:endpoint].addresses}.map do |addresses, records|
+								{addresses: addresses, healthy: records.any?{|record| record[:healthy]}}
 							end
 						end
 					end

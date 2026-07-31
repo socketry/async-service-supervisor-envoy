@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Deduplicate shared listener endpoints reported by multiple supervised workers.
+
 ## v0.0.1
 
   - Register concrete Falcon cluster listeners as Envoy upstream endpoint state after binding.

@@ -41,16 +41,18 @@ state = {
 
 Workers without endpoint state are ignored by the Envoy monitor.
 
-Falcon cluster workers can register their concrete post-bind listener automatically:
+Falcon server workers can register their concrete bound listener automatically:
 
 ``` ruby
 service "application" do
-	include Falcon::Environment::Cluster
+	include Falcon::Environment::Server
 	include Async::Service::Supervisor::Envoy::Supervised
 end
 ```
 
-Falcon describes its bound server resource as a listener. The integration converts that listener into Envoy upstream endpoint state, including its name, scheme, supported protocols, and every concrete IP or Unix socket address. Addresses belonging to one listener remain grouped as one Envoy load-balancer endpoint.
+`Falcon::Environment::Server` reports one listener shared by all of its workers, while `Falcon::Environment::Cluster` reports the listener bound independently by each worker. Falcon describes either bound server resource as a listener. The integration converts that listener into Envoy upstream endpoint state, including its name, scheme, supported protocols, and every concrete IP or Unix socket address.
+
+Addresses belonging to one listener remain grouped as one Envoy load-balancer endpoint. When several workers report the same shared listener, the monitor publishes it once and keeps it available while any reporting worker is healthy.
 
 ## Monitor Usage
 

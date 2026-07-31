@@ -100,6 +100,36 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(assignment.endpoints.first.lb_endpoints).to be(:empty?)
 	end
 	
+	it "publishes a shared listener once while any worker remains" do
+		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
+			def healthy?(supervisor_controller, endpoint)
+				supervisor_controller.state[:healthy]
+			end
+		end.new
+		
+		monitor = subject.new(delegate: delegate)
+		endpoint = {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		first = Controller.new(1, {endpoint: endpoint, healthy: false})
+		second = Controller.new(2, {endpoint: endpoint, healthy: true})
+		
+		monitor.register(first)
+		monitor.register(second)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == [
+			{addresses: [{address: "127.0.0.1", port: 50051}], healthy: true}
+		]
+		
+		monitor.remove(second)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == [
+			{addresses: [{address: "127.0.0.1", port: 50051}], healthy: false}
+		]
+		
+		monitor.remove(first)
+		
+		expect(monitor.as_json[:clusters]["myservice"]).to be == nil
+	end
+	
 	it "groups workers by service name" do
 		monitor.register(Controller.new(1, {
 			endpoint: {name: "service-a", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
