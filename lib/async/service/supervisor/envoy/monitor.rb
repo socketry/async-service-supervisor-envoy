@@ -294,7 +294,7 @@ module Async
 											cpu_utilization: cpu,
 											rps_fractional: rps,
 											named_metrics: {"orca.heartbeat" => 0.0},
-										).freeze
+										)
 										next
 									end
 								end

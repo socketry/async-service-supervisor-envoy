@@ -16,7 +16,7 @@ module Async
 					SERVICE_NAME = "xds.service.orca.v3.OpenRcaService"
 					EMPTY_REPORT = Xds::Data::Orca::V3::OrcaLoadReport.new(
 						named_metrics: {"orca.heartbeat" => 0.0}
-					).freeze
+					)
 					
 					# Initialize the ORCA service.
 					# @parameter monitor [Monitor] The monitor providing worker load reports.
