@@ -14,7 +14,9 @@ module Async
 				# Streams per-worker out-of-band ORCA load reports to Envoy.
 				class ORCAService < Async::GRPC::Service
 					SERVICE_NAME = "xds.service.orca.v3.OpenRcaService"
-					EMPTY_REPORT = Xds::Data::Orca::V3::OrcaLoadReport.new.freeze
+					EMPTY_REPORT = Xds::Data::Orca::V3::OrcaLoadReport.new(
+						named_metrics: {"orca.heartbeat" => 0.0}
+					).freeze
 					
 					# Initialize the ORCA service.
 					# @parameter monitor [Monitor] The monitor providing worker load reports.

@@ -302,6 +302,13 @@ module Async
 							end
 							
 							@request_totals = request_totals
+							
+							Console.debug(self, "Sampled ORCA load reports.",
+								workers: workers.keys,
+								processes: processor_samples.keys,
+								requests: request_totals,
+								reports: @load_reports.keys,
+							)
 						end
 					end
 					
