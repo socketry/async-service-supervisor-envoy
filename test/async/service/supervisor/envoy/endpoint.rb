@@ -72,10 +72,4 @@ describe Async::Service::Supervisor::Envoy::Endpoint do
 			subject.build(**attributes, protocols: [])
 		end.to raise_exception(ArgumentError)
 	end
-	
-	it "rejects invalid endpoint addresses" do
-		expect do
-			subject.build(**attributes, addresses: [{}])
-		end.to raise_exception(ArgumentError)
-	end
 end

@@ -20,7 +20,7 @@ module Async
 							name.to_s,
 							scheme.to_sym,
 							protocols.map(&:to_s).uniq,
-							addresses.map{|value| normalize_address(value)},
+							addresses,
 						).tap(&:freeze)
 					end
 					
@@ -35,21 +35,6 @@ module Async
 							build(**value)
 						else
 							raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
-						end
-					end
-					
-					# Normalize a concrete endpoint address.
-					# @parameter value [Hash] The address value.
-					# @returns [Hash] A normalized IP or Unix address.
-					def self.normalize_address(value)
-						if path = value[:path]
-							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
-							
-							{path: path.to_s}
-						elsif value[:address] && value[:port]
-							{address: value[:address].to_s, port: Integer(value[:port])}
-						else
-							raise ArgumentError, "An endpoint address requires either path, or address and port: #{value.inspect}"
 						end
 					end
 					
