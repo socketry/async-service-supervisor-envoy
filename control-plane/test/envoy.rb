@@ -17,43 +17,43 @@ describe "Envoy control plane" do
 		
 		while Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
 			begin
-				return yield
+				return result if result = yield
 			rescue => error
-				sleep interval
 			end
+			
+			sleep interval
 		end
 		
-		raise error
+		raise error || "Condition was not met within #{timeout} seconds!"
 	end
 	
 	it "routes requests through Envoy to supervised Falcon workers" do
 		uri = envoy_uri
 		
-		eventually do
-			backend_ids = 20.times.map do
-				response = Net::HTTP.get_response(uri)
-				
-				expect(response.code.to_i).to be == 200
-				expect(response.body).to be =~ /Hello from backend-[ab]/
-				
-				response["x-backend-id"]
-			end
+		responses = eventually do
+			responses = 20.times.map{Net::HTTP.get_response(uri)}
+			backend_ids = responses.filter_map{|response| response["x-backend-id"]}.uniq.sort
 			
-			expect(backend_ids.compact.uniq.sort).to be == ["backend-a", "backend-b"]
+			responses if backend_ids == ["backend-a", "backend-b"]
 		end
+		
+		responses.each do |response|
+			expect(response.code.to_i).to be == 200
+			expect(response.body).to be =~ /Hello from backend-[ab]/
+		end
+		
+		expect(responses.filter_map{|response| response["x-backend-id"]}.uniq.sort).to be == ["backend-a", "backend-b"]
 	end
 	
 	it "loads the xDS cluster from the supervisor monitor" do
 		uri = admin_uri + "/clusters?format=json"
 		
 		cluster_status = eventually do
-			response = Net::HTTP.get_response(uri)
-			
-			expect(response.code.to_i).to be == 200
-			
-			clusters = JSON.parse(response.body)
-			clusters.fetch("cluster_statuses").find do |cluster|
-				cluster.fetch("name") == "app-http1"
+			if (response = Net::HTTP.get_response(uri)).code.to_i == 200
+				clusters = JSON.parse(response.body)
+				clusters.fetch("cluster_statuses").find do |cluster|
+					cluster.fetch("name") == "app-http1"
+				end
 			end
 		end
 		
