@@ -6,9 +6,9 @@
 require "async/http/endpoint"
 require "async/service/supervisor/monitor"
 require "async/service/supervisor/utilization_monitor"
+require "async/grpc/xds/client_side_weighted_round_robin"
 require "async/grpc/xds/control_plane"
 require "async/grpc/xds/resource_builder"
-require "async/grpc/xds/resources/client_side_weighted_round_robin"
 require "async/grpc/xds/server"
 require "process/metrics"
 require "xds/data/orca/v3/orca_load_report_pb"
@@ -254,7 +254,7 @@ module Async
 								raise ArgumentError, "Out-of-band ORCA reporting requires IP endpoints!"
 							end
 							
-							configuration[:load_balancing_policy] = Async::GRPC::XDS::Resources::ClientSideWeightedRoundRobin.build(
+							configuration[:load_balancing_policy] = Async::GRPC::XDS::ClientSideWeightedRoundRobin.build(
 								@orca_port,
 								reporting_period: @interval
 							)
