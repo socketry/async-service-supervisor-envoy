@@ -16,12 +16,7 @@ module Async
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					# @returns [Endpoint] The immutable endpoint.
 					def self.build(name:, scheme:, protocols:, addresses:)
-						new(
-							name.to_s.freeze,
-							scheme.to_sym,
-							protocols.map{|protocol| protocol.to_s.freeze}.uniq.freeze,
-							addresses.map{|value| normalize_address(value)}.freeze,
-						).tap(&:freeze)
+						new(name, scheme, protocols, addresses).tap(&:freeze)
 					end
 					
 					# Wrap serialized endpoint state.
@@ -83,7 +78,14 @@ module Async
 					
 					# Freeze this endpoint and cache its value hash.
 					def freeze
-						@hash = hash unless frozen?
+						unless frozen?
+							@name = @name.to_s.freeze
+							@scheme = @scheme.to_sym
+							@protocols = @protocols.map{|protocol| protocol.to_s.freeze}.uniq.freeze
+							@addresses = @addresses.map{|value| self.class.normalize_address(value)}.freeze
+							@hash = hash
+						end
+						
 						super
 					end
 					
