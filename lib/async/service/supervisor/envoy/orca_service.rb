@@ -4,6 +4,7 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "async/grpc/service"
+require "protocol/http/body/writable"
 require "xds/service/orca/v3/open_rca_service"
 
 module Async
@@ -13,6 +14,7 @@ module Async
 				# Streams per-worker out-of-band ORCA load reports to Envoy.
 				class ORCAService < Async::GRPC::Service
 					SERVICE_NAME = "xds.service.orca.v3.OpenRcaService"
+					EMPTY_REPORT = Xds::Data::Orca::V3::OrcaLoadReport.new.freeze
 					
 					# Initialize the ORCA service.
 					# @parameter monitor [Monitor] The monitor providing worker load reports.
@@ -37,12 +39,12 @@ module Async
 						interval = [duration(request.report_interval), @minimum_interval].max
 						
 						while @monitor.worker?(authority)
-							if report = @monitor.load_report(authority)
-								output.write(report)
-							end
+							output.write(@monitor.load_report(authority) || EMPTY_REPORT)
 							
 							sleep(interval)
 						end
+					rescue Protocol::HTTP::Body::Writable::Closed
+						# The client closed the reporting stream.
 					end
 					
 					private
