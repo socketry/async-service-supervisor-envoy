@@ -7,7 +7,7 @@ require "async/service/supervisor/envoy/monitor"
 require "envoy/config/endpoint/v3/endpoint_pb"
 
 describe Async::Service::Supervisor::Envoy::Monitor do
-	Controller = Struct.new(:id, :state)
+	Controller = Struct.new(:id, :state, :process_id)
 	
 	let(:monitor) {subject.new}
 	let(:control_plane) {monitor.control_plane}
@@ -19,6 +19,18 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		)
 		
 		Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
+	end
+	
+	def utilization_monitor(samples = [])
+		Object.new.tap do |monitor|
+			monitor.define_singleton_method(:sample_by_worker){samples.shift || {}}
+		end
+	end
+	
+	def processor(samples = [])
+		Object.new.tap do |processor|
+			processor.define_singleton_method(:sample){|process_ids| samples.shift || {}}
+		end
 	end
 	
 	it "publishes registered endpoints" do
@@ -34,6 +46,99 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(assignment.cluster_name).to be == "myservice"
 		expect(load_balancer_endpoint.endpoint.address.socket_address.address).to be == "127.0.0.1"
 		expect(load_balancer_endpoint.endpoint.address.socket_address.port_value).to be == 50051
+	end
+	
+	it "publishes ORCA worker identity and load-balancing configuration" do
+		monitor = subject.new(
+			bind: "http://127.0.0.1:18000",
+			orca: true,
+			processor: processor,
+			utilization_monitor: utilization_monitor
+		)
+		controller = Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		}, 123)
+		
+		monitor.register(controller)
+		
+		response = monitor.control_plane.response(
+			Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE,
+			["myservice"]
+		)
+		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
+		cluster = monitor.control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
+		typed_configuration = cluster.load_balancing_policy.policies.first.typed_extension_config
+		configuration = Envoy::Extensions::LoadBalancingPolicies::ClientSideWeightedRoundRobin::V3::ClientSideWeightedRoundRobin.decode(
+			typed_configuration.typed_config.value
+		)
+		
+		expect(assignment.endpoints.first.lb_endpoints.first.endpoint.hostname).to be == "worker-1"
+		expect(configuration.enable_oob_load_report.value).to be == true
+		expect(configuration.oob_reporting_config.port_value).to be == 18000
+	end
+	
+	it "samples per-worker ORCA load reports" do
+		utilization = utilization_monitor([
+			{1 => {state: {}, utilization: {requests_total: 10}}},
+			{1 => {state: {}, utilization: {requests_total: 14}}},
+		])
+		processor_sample = Struct.new(:duration, :utilization).new(2.0, 0.5)
+		processor = processor([
+			{},
+			{123 => processor_sample},
+		])
+		monitor = subject.new(
+			bind: "http://127.0.0.1:18000",
+			orca: true,
+			processor: processor,
+			utilization_monitor: utilization
+		)
+		controller = Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		}, 123)
+		
+		monitor.register(controller)
+		monitor.run_once
+		expect(monitor.load_report("worker-1")).to be_nil
+		
+		monitor.run_once
+		report = monitor.load_report("worker-1")
+		
+		expect(report.cpu_utilization).to be == 0.5
+		expect(report.rps_fractional).to be == 2.0
+		expect(report.named_metrics).to be == {"orca.heartbeat" => 0.0}
+		expect(monitor.worker?("worker-1")).to be == true
+		
+		monitor.remove(controller)
+		expect(monitor.worker?("worker-1")).to be == false
+		expect(monitor.load_report("worker-1")).to be_nil
+	end
+	
+	it "requires a fixed bind address for ORCA" do
+		expect do
+			subject.new(orca: true)
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "requires a utilization monitor for ORCA" do
+		expect do
+			subject.new(bind: "http://127.0.0.1:18000", orca: true)
+		end.to raise_exception(ArgumentError)
+	end
+	
+	it "rejects Unix endpoints for out-of-band ORCA" do
+		monitor = subject.new(
+			bind: "http://127.0.0.1:18000",
+			orca: true,
+			processor: processor,
+			utilization_monitor: utilization_monitor
+		)
+		
+		expect do
+			monitor.register(Controller.new(1, {
+				endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/falcon.ipc"}]}
+			}, 123))
+		end.to raise_exception(ArgumentError)
 	end
 	
 	it "publishes a supervised Unix endpoint" do
