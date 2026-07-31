@@ -7,7 +7,7 @@ module Async
 	module Service
 		module Supervisor
 			module Envoy
-				# An immutable upstream endpoint published to Envoy EDS.
+				# Represents an upstream endpoint published to Envoy EDS.
 				class Endpoint
 					# Build an immutable endpoint.
 					# @parameter name [String] The upstream cluster name.
