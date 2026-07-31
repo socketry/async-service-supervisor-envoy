@@ -25,7 +25,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		Object.new.tap do |monitor|
 			monitor.define_singleton_method(:register){|controller|}
 			monitor.define_singleton_method(:remove){|controller|}
-			monitor.define_singleton_method(:sample_workers){samples.shift || {}}
+			monitor.define_singleton_method(:sample_by_worker){samples.shift || {}}
 		end
 	end
 	

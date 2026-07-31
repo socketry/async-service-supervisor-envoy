@@ -5,7 +5,6 @@
 
 source "https://rubygems.org"
 
-gem "async-grpc-xds", github: "socketry/async-grpc-xds", branch: "add-orca-support"
 gem "async-service-supervisor", github: "socketry/async-service-supervisor", branch: "expose-worker-utilization"
 gem "falcon"
 

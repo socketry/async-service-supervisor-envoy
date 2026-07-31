@@ -8,7 +8,6 @@ require "async/service/supervisor/monitor"
 require "async/service/supervisor/utilization_monitor"
 require "async/grpc/xds/client_side_weighted_round_robin"
 require "async/grpc/xds/control_plane"
-require "async/grpc/xds/resource_builder"
 require "async/grpc/xds/server"
 require "process/metrics"
 require "xds/data/orca/v3/orca_load_report_pb"
@@ -265,7 +264,7 @@ module Async
 					
 					def sample_load_reports
 						controllers = @mutex.synchronize{@controllers.dup}
-						workers = @utilization_monitor.sample_workers
+						workers = @utilization_monitor.sample_by_worker
 						process_ids = controllers.each_value.filter_map(&:process_id)
 						processor_samples = @processor.sample(process_ids)
 						request_totals = {}
