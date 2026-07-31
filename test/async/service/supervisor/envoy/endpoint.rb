@@ -46,6 +46,7 @@ describe Async::Service::Supervisor::Envoy::Endpoint do
 		expect(endpoint.addresses.frozen?).to be == true
 		expect(endpoint.addresses.first.frozen?).to be == true
 		expect(endpoint.addresses.first[:path].frozen?).to be == true
+		expect(endpoint.freeze).to be_equal(endpoint)
 	end
 	
 	it "preserves address order in endpoint identity" do

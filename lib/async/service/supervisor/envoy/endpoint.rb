@@ -16,7 +16,12 @@ module Async
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					# @returns [Endpoint] The immutable endpoint.
 					def self.build(name:, scheme:, protocols:, addresses:)
-						new(name, scheme, protocols, addresses).tap(&:freeze)
+						new(
+							name.to_s,
+							scheme.to_sym,
+							protocols.map(&:to_s).uniq,
+							addresses.map{|value| normalize_address(value)},
+						).tap(&:freeze)
 					end
 					
 					# Wrap serialized endpoint state.
@@ -40,9 +45,9 @@ module Async
 						if path = value[:path]
 							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
 							
-							{path: path.to_s.freeze}.freeze
+							{path: path.to_s}
 						elsif value[:address] && value[:port]
-							{address: value[:address].to_s.freeze, port: Integer(value[:port])}.freeze
+							{address: value[:address].to_s, port: Integer(value[:port])}
 						else
 							raise ArgumentError, "An endpoint address requires either path, or address and port: #{value.inspect}"
 						end
@@ -50,7 +55,7 @@ module Async
 					
 					# Initialize an endpoint.
 					# @parameter name [String] The upstream cluster name.
-					# @parameter scheme [String | Symbol] The upstream application scheme.
+					# @parameter scheme [Symbol] The upstream application scheme.
 					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					def initialize(name, scheme, protocols, addresses)
@@ -78,13 +83,15 @@ module Async
 					
 					# Freeze this endpoint and cache its value hash.
 					def freeze
-						unless frozen?
-							@name = @name.to_s.freeze
-							@scheme = @scheme.to_sym
-							@protocols = @protocols.map{|protocol| protocol.to_s.freeze}.uniq.freeze
-							@addresses = @addresses.map{|value| self.class.normalize_address(value)}.freeze
-							@hash = hash
-						end
+						return self if frozen?
+						
+						@name.freeze
+						@protocols.each(&:freeze).freeze
+						@addresses.each do |address|
+							address.each_value(&:freeze)
+							address.freeze
+						end.freeze
+						@hash = hash
 						
 						super
 					end
