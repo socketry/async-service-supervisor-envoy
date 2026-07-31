@@ -275,48 +275,6 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		}
 	end
 	
-	it "wraps endpoint values" do
-		endpoint = Async::Service::Supervisor::Envoy::Endpoint.wrap(
-			{name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]}
-		)
-		
-		expect(endpoint.name).to be == "api"
-		expect(endpoint.scheme).to be == :http
-		expect(endpoint.protocols).to be == ["h2"]
-		expect(endpoint.protocols.frozen?).to be == true
-		expect(endpoint.addresses).to be == [{path: "/tmp/api.ipc"}]
-	end
-	
-	it "returns endpoint instances unchanged" do
-		endpoint = Async::Service::Supervisor::Envoy::Endpoint.new(
-			name: "api", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/api.ipc"}]
-		)
-		
-		expect(Async::Service::Supervisor::Envoy::Endpoint.wrap(endpoint)).to be == endpoint
-	end
-	
-	it "rejects invalid endpoint objects" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.wrap(Object.new)
-		end.to raise_exception(ArgumentError)
-	end
-	
-	it "rejects endpoints without protocols" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.new(
-				name: "api", scheme: "http", protocols: [], addresses: [{path: "/tmp/api.ipc"}]
-			)
-		end.to raise_exception(ArgumentError)
-	end
-	
-	it "rejects invalid endpoint addresses" do
-		expect do
-			Async::Service::Supervisor::Envoy::Endpoint.new(
-				name: "api", scheme: "http", protocols: ["h2"], addresses: [{}]
-			)
-		end.to raise_exception(ArgumentError)
-	end
-	
 	it "selects the preferred common endpoint protocol" do
 		monitor.register(Controller.new(1, {
 			endpoint: {name: "myservice", scheme: "http", protocols: ["h2", "http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-  - Deduplicate shared listener endpoints reported by multiple supervised workers.
+  - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
 
 ## v0.0.1
 

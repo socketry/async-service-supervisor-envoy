@@ -7,7 +7,7 @@ module Async
 	module Service
 		module Supervisor
 			module Envoy
-				# Represents one upstream endpoint published to Envoy EDS.
+				# An immutable upstream endpoint published to Envoy EDS.
 				class Endpoint
 					# Wrap serialized endpoint state.
 					# @parameter value [Endpoint | Hash] The value to wrap.
@@ -30,9 +30,9 @@ module Async
 						if path = value[:path]
 							raise ArgumentError, "A Unix endpoint cannot specify an IP address or port!" if value[:address] || value[:port]
 							
-							{path: path.to_s}.freeze
+							{path: path.to_s.dup.freeze}.freeze
 						elsif value[:address] && value[:port]
-							{address: value[:address].to_s, port: Integer(value[:port])}.freeze
+							{address: value[:address].to_s.dup.freeze, port: Integer(value[:port])}.freeze
 						else
 							raise ArgumentError, "An endpoint address requires either path, or address and port: #{value.inspect}"
 						end
@@ -44,12 +44,15 @@ module Async
 					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					def initialize(name:, scheme:, protocols:, addresses:)
-						@name = name.to_s
+						@name = name.to_s.dup.freeze
 						@scheme = scheme.to_sym
-						@protocols = protocols.map(&:to_s).uniq.freeze
+						@protocols = protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze
 						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
 						@addresses = addresses.map{|value| self.class.normalize_address(value)}.freeze
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
+						
+						@hash = [self.class, @name, @scheme, @protocols, @addresses].hash
+						freeze
 					end
 					
 					# @attribute [String] The upstream cluster name.
@@ -64,6 +67,24 @@ module Async
 					# @attribute [Array(Hash)] The grouped concrete addresses.
 					attr :addresses
 					
+					# Compare this endpoint with another endpoint by value.
+					# @parameter other [Object] The object to compare.
+					# @returns [Boolean] Whether both endpoints have identical values.
+					def ==(other)
+						other.instance_of?(self.class) &&
+							@name == other.name &&
+							@scheme == other.scheme &&
+							@protocols == other.protocols &&
+							@addresses == other.addresses
+					end
+					
+					alias eql? ==
+					
+					# Compute the value hash used when grouping endpoints.
+					# @returns [Integer] The endpoint value hash.
+					def hash
+						@hash
+					end
 				end
 			end
 		end
