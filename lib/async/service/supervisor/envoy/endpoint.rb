@@ -99,7 +99,7 @@ module Async
 					# Compare this endpoint with another endpoint by value.
 					# @parameter other [Object] The object to compare.
 					# @returns [Boolean] Whether both endpoints have identical values.
-					def ==(other)
+					def eql?(other)
 						other.instance_of?(self.class) &&
 							@name == other.name &&
 							@scheme == other.scheme &&
@@ -107,7 +107,7 @@ module Async
 							@addresses == other.addresses
 					end
 					
-					alias eql? ==
+					alias == eql?
 					
 					# Compute the value hash used when grouping endpoints.
 					# @returns [Integer] The endpoint value hash.
