@@ -65,8 +65,6 @@ module Async
 						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
 						@addresses = addresses
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
-						
-						@hash = [self.class, @name, @scheme, @protocols, @addresses].hash
 					end
 					
 					# @attribute [String] The upstream cluster name.
@@ -80,6 +78,12 @@ module Async
 					
 					# @attribute [Array(Hash)] The grouped concrete addresses.
 					attr :addresses
+					
+					# Freeze this endpoint and cache its value hash.
+					def freeze
+						@hash = hash unless frozen?
+						super
+					end
 					
 					# Compare this endpoint with another endpoint by value.
 					# @parameter other [Object] The object to compare.
@@ -97,7 +101,7 @@ module Async
 					# Compute the value hash used when grouping endpoints.
 					# @returns [Integer] The endpoint value hash.
 					def hash
-						@hash
+						@hash || [self.class, @name, @scheme, @protocols, @addresses].hash
 					end
 				end
 			end
