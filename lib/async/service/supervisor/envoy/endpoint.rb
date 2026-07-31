@@ -91,7 +91,7 @@ module Async
 							address.each_value(&:freeze)
 							address.freeze
 						end.freeze
-						@hash = hash
+						@hash = self.hash
 						
 						super
 					end
