@@ -292,7 +292,8 @@ module Async
 									if rps.finite? && cpu.finite?
 										@load_reports[hostname] = Xds::Data::Orca::V3::OrcaLoadReport.new(
 											cpu_utilization: cpu,
-											rps_fractional: rps
+											rps_fractional: rps,
+											named_metrics: {"orca.heartbeat" => 0.0},
 										).freeze
 										next
 									end

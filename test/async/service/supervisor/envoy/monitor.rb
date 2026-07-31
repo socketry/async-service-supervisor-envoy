@@ -108,6 +108,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		
 		expect(report.cpu_utilization).to be == 0.5
 		expect(report.rps_fractional).to be == 2.0
+		expect(report.named_metrics).to be == {"orca.heartbeat" => 0.0}
 		expect(monitor.worker?("worker-1")).to be == true
 		
 		monitor.remove(controller)
