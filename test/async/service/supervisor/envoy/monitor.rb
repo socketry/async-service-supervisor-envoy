@@ -241,7 +241,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		delegate = Class.new(Async::Service::Supervisor::Envoy::Delegate) do
 			def endpoint_list(supervisor_controller)
 				[
-					Async::Service::Supervisor::Envoy::Endpoint.new(
+					Async::Service::Supervisor::Envoy::Endpoint.build(
 						name: "ignored",
 						scheme: "http",
 						protocols: ["http/1.1"],

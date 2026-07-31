@@ -25,14 +25,14 @@ describe Async::Service::Supervisor::Envoy::Endpoint do
 	end
 	
 	it "returns endpoint instances unchanged" do
-		endpoint = subject.new(**attributes)
+		endpoint = subject.build(**attributes)
 		
 		expect(subject.wrap(endpoint)).to be_equal(endpoint)
 	end
 	
 	it "has immutable value semantics" do
-		endpoint = subject.new(**attributes)
-		equivalent = subject.new(**attributes)
+		endpoint = subject.build(**attributes)
+		equivalent = subject.build(**attributes)
 		
 		expect(endpoint).to be == equivalent
 		expect(endpoint.eql?(equivalent)).to be == true
@@ -54,8 +54,8 @@ describe Async::Service::Supervisor::Envoy::Endpoint do
 			{path: "/tmp/api.ipc"},
 		]
 		
-		endpoint = subject.new(**attributes, addresses: addresses)
-		reordered = subject.new(**attributes, addresses: addresses.reverse)
+		endpoint = subject.build(**attributes, addresses: addresses)
+		reordered = subject.build(**attributes, addresses: addresses.reverse)
 		
 		expect(endpoint).not.to be == reordered
 	end
@@ -68,13 +68,13 @@ describe Async::Service::Supervisor::Envoy::Endpoint do
 	
 	it "rejects endpoints without protocols" do
 		expect do
-			subject.new(**attributes, protocols: [])
+			subject.build(**attributes, protocols: [])
 		end.to raise_exception(ArgumentError)
 	end
 	
 	it "rejects invalid endpoint addresses" do
 		expect do
-			subject.new(**attributes, addresses: [{}])
+			subject.build(**attributes, addresses: [{}])
 		end.to raise_exception(ArgumentError)
 	end
 end

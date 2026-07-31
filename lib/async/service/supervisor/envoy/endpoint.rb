@@ -9,6 +9,21 @@ module Async
 			module Envoy
 				# An immutable upstream endpoint published to Envoy EDS.
 				class Endpoint
+					# Build an immutable endpoint.
+					# @parameter name [String] The upstream cluster name.
+					# @parameter scheme [String | Symbol] The upstream application scheme.
+					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
+					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
+					# @returns [Endpoint] The immutable endpoint.
+					def self.build(name:, scheme:, protocols:, addresses:)
+						new(
+							name: name.to_s.dup.freeze,
+							scheme: scheme.to_sym,
+							protocols: protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze,
+							addresses: addresses.map{|value| normalize_address(value)}.freeze,
+						).tap(&:freeze)
+					end
+					
 					# Wrap serialized endpoint state.
 					# @parameter value [Endpoint | Hash] The value to wrap.
 					# @returns [Endpoint] The endpoint value.
@@ -17,7 +32,7 @@ module Async
 						when self
 							value
 						when Hash
-							new(**value)
+							build(**value)
 						else
 							raise ArgumentError, "Invalid Envoy endpoint: #{value.inspect}"
 						end
@@ -44,15 +59,14 @@ module Async
 					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
 					def initialize(name:, scheme:, protocols:, addresses:)
-						@name = name.to_s.dup.freeze
-						@scheme = scheme.to_sym
-						@protocols = protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze
+						@name = name
+						@scheme = scheme
+						@protocols = protocols
 						raise ArgumentError, "An endpoint requires at least one protocol!" if @protocols.empty?
-						@addresses = addresses.map{|value| self.class.normalize_address(value)}.freeze
+						@addresses = addresses
 						raise ArgumentError, "An endpoint requires at least one address!" if @addresses.empty?
 						
 						@hash = [self.class, @name, @scheme, @protocols, @addresses].hash
-						freeze
 					end
 					
 					# @attribute [String] The upstream cluster name.
@@ -85,6 +99,8 @@ module Async
 					def hash
 						@hash
 					end
+					
+					private_class_method :new
 				end
 			end
 		end

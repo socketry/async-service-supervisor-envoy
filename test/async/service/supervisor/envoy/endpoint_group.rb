@@ -10,7 +10,7 @@ describe Async::Service::Supervisor::Envoy::EndpointGroup do
 	Worker = Struct.new(:id)
 	
 	let(:endpoint) do
-		Async::Service::Supervisor::Envoy::Endpoint.new(
+		Async::Service::Supervisor::Envoy::Endpoint.build(
 			name: "api",
 			scheme: "http",
 			protocols: ["h2"],
