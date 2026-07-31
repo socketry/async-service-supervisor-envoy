@@ -17,10 +17,10 @@ module Async
 					# @returns [Endpoint] The immutable endpoint.
 					def self.build(name:, scheme:, protocols:, addresses:)
 						new(
-							name: name.to_s.dup.freeze,
-							scheme: scheme.to_sym,
-							protocols: protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze,
-							addresses: addresses.map{|value| normalize_address(value)}.freeze,
+							name.to_s.dup.freeze,
+							scheme.to_sym,
+							protocols.map{|protocol| protocol.to_s.dup.freeze}.uniq.freeze,
+							addresses.map{|value| normalize_address(value)}.freeze,
 						).tap(&:freeze)
 					end
 					
@@ -58,7 +58,7 @@ module Async
 					# @parameter scheme [String | Symbol] The upstream application scheme.
 					# @parameter protocols [Array(String)] The supported upstream HTTP protocol names.
 					# @parameter addresses [Array(Hash)] The grouped concrete addresses.
-					def initialize(name:, scheme:, protocols:, addresses:)
+					def initialize(name, scheme, protocols, addresses)
 						@name = name
 						@scheme = scheme
 						@protocols = protocols
