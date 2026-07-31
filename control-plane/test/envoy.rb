@@ -29,8 +29,8 @@ describe "Envoy control plane" do
 	it "routes requests through Envoy to supervised Falcon workers" do
 		uri = envoy_uri
 		
-		backend_ids = eventually do
-			20.times.map do
+		eventually do
+			backend_ids = 20.times.map do
 				response = Net::HTTP.get_response(uri)
 				
 				expect(response.code.to_i).to be == 200
@@ -38,9 +38,9 @@ describe "Envoy control plane" do
 				
 				response["x-backend-id"]
 			end
+			
+			expect(backend_ids.compact.uniq.sort).to be == ["backend-a", "backend-b"]
 		end
-		
-		expect(backend_ids.compact.uniq.sort).to be == ["backend-a", "backend-b"]
 	end
 	
 	it "loads the xDS cluster from the supervisor monitor" do
