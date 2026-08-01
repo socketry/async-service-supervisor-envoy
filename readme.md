@@ -25,6 +25,10 @@ Please see the [project documentation](https://socketry.github.io/async-service-
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
 
+### v0.3.1
+
+  - Add Bake tasks for inspecting Envoy monitor status, clusters, and endpoints.
+
 ### v0.3.0
 
   - Add supervisor-driven out-of-band ORCA load reporting for independently addressable workers.

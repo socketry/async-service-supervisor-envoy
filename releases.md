@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.3.1
 
   - Add Bake tasks for inspecting Envoy monitor status, clusters, and endpoints.
 
