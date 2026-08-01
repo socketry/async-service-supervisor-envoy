@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.4.0
 
   - Publish configured active health checks with Envoy clusters.
 

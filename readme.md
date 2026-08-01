@@ -25,6 +25,10 @@ Please see the [project documentation](https://socketry.github.io/async-service-
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
 
+### v0.4.0
+
+  - Publish configured active health checks with Envoy clusters.
+
 ### v0.3.1
 
   - Add Bake tasks for inspecting Envoy monitor status, clusters, and endpoints.
