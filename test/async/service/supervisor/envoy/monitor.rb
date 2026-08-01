@@ -4,6 +4,7 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "async/service/supervisor/envoy/monitor"
+require "async/grpc/xds/http_health_check"
 require "envoy/config/endpoint/v3/endpoint_pb"
 
 describe Async::Service::Supervisor::Envoy::Monitor do
@@ -46,6 +47,19 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(assignment.cluster_name).to be == "myservice"
 		expect(load_balancer_endpoint.endpoint.address.socket_address.address).to be == "127.0.0.1"
 		expect(load_balancer_endpoint.endpoint.address.socket_address.port_value).to be == 50051
+	end
+	
+	it "publishes active health checks" do
+		health_check = Async::GRPC::XDS::HTTPHealthCheck.build("/services/ping")
+		monitor = subject.new(health_checks: [health_check])
+		controller = Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		})
+		
+		monitor.register(controller)
+		cluster = monitor.control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
+		
+		expect(cluster.health_checks).to be == [health_check]
 	end
 	
 	it "publishes ORCA worker identity and load-balancing configuration" do

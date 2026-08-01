@@ -28,6 +28,7 @@ module Async
 					# @parameter bind [String | Nil] The optional address for the xDS control plane server.
 					# @parameter delegate [Delegate] The delegate used to map supervisor state into Envoy endpoints.
 					# @parameter control_plane [Async::GRPC::XDS::ControlPlane] The xDS control plane to update.
+					# @parameter health_checks [Array(Envoy::Config::Core::V3::HealthCheck)] The active health checks applied to published clusters.
 					# @parameter orca [Boolean] Whether to collect and serve per-worker ORCA load reports.
 					# @parameter processor [Process::Metrics::Processor | Nil] The optional process CPU sampler.
 					# @parameter utilization_monitor [Async::Service::Supervisor::UtilizationMonitor | Nil] The per-worker utilization monitor used for ORCA reporting.
@@ -36,6 +37,7 @@ module Async
 						bind: nil,
 						delegate: Delegate.new,
 						control_plane: Async::GRPC::XDS::ControlPlane.new,
+						health_checks: [],
 						orca: false,
 						processor: nil,
 						utilization_monitor: nil,
@@ -47,6 +49,7 @@ module Async
 						@bind = bind
 						@delegate = delegate
 						@control_plane = control_plane
+						@health_checks = health_checks
 						@interval = interval
 						@orca = orca
 						@controllers = {}
@@ -243,7 +246,10 @@ module Async
 						raise ArgumentError, "Envoy cluster contains no common protocols: #{protocols.inspect}" if common_protocols.empty?
 						raise ArgumentError, "HTTPS upstream endpoints are not yet supported!" if schemes.first == :https
 						
-						configuration = {protocol: envoy_protocol(common_protocols)}
+						configuration = {
+							protocol: envoy_protocol(common_protocols),
+							health_checks: @health_checks,
+						}
 						
 						if @orca
 							if records.any?{|record| record[:endpoint].addresses.any?{|address| address[:path]}}
