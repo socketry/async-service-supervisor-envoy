@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Publish configured active health checks with Envoy clusters.
+
 ## v0.3.1
 
   - Add Bake tasks for inspecting Envoy monitor status, clusters, and endpoints.
