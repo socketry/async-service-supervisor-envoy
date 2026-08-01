@@ -47,10 +47,6 @@ Please see the [project releases](https://socketry.github.io/async-service-super
   - Publish grouped IP and Unix-domain-socket endpoint addresses to Envoy.
   - Configure generated clusters from each endpoint's supported HTTP protocol names.
 
-### v0.1.0
-
-  - Deduplicate immutable endpoint values reported by multiple supervised workers and aggregate their health.
-
 ## See Also
 
   - [async-service-supervisor](https://github.com/socketry/async-service-supervisor) - Supervisor for managed Async service workers.
