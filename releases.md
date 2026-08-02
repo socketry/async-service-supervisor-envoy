@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Use normalized processor utilization from `process-metrics` v0.13.
+
 ## v0.4.0
 
   - Publish configured active health checks with Envoy clusters.
