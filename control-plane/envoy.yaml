@@ -9,12 +9,16 @@ admin:
       port_value: 19000
 
 dynamic_resources:
-  ads_config:
-    api_type: GRPC
-    transport_api_version: V3
-    grpc_services:
-      - envoy_grpc:
-          cluster_name: xds_cluster
+  # Clusters come from the supervisor's dedicated CDS stream. ADS remains
+  # unconfigured and is available to another control plane.
+  cds_config:
+    resource_api_version: V3
+    api_config_source:
+      api_type: GRPC
+      transport_api_version: V3
+      grpc_services:
+        - envoy_grpc:
+            cluster_name: xds_cluster
 
 static_resources:
   listeners:
@@ -31,6 +35,9 @@ static_resources:
                 stat_prefix: ingress_http
                 route_config:
                   name: local_route
+                  # The application cluster arrives over CDS after this static
+                  # route is loaded.
+                  validate_clusters: false
                   virtual_hosts:
                     - name: backend
                       domains: ["*"]
@@ -45,15 +52,8 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-    - name: app-http1
-      connect_timeout: 1s
-      type: EDS
-      lb_policy: ROUND_ROBIN
-      eds_cluster_config:
-        service_name: app-http1
-        eds_config:
-          ads: {}
-          resource_api_version: V3
+    # This bootstrap cluster lets Envoy reach the supervisor. Application
+    # clusters arrive over CDS and point their EDS subscriptions back here.
     - name: xds_cluster
       connect_timeout: 1s
       type: STRICT_DNS

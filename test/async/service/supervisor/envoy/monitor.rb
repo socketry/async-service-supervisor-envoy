@@ -57,9 +57,11 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		})
 		
 		monitor.register(controller)
+		
 		cluster = monitor.control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
 		
 		expect(cluster.health_checks).to be == [health_check]
+		expect(cluster.eds_cluster_config.eds_config.api_config_source.grpc_services.first.envoy_grpc.cluster_name).to be == "xds_cluster"
 	end
 	
 	it "publishes ORCA worker identity and load-balancing configuration" do
@@ -394,6 +396,19 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		}
 	end
 	
+	it "publishes distinct endpoints reported by several workers" do
+		monitor.register(Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/one.ipc"}]}
+		}))
+		monitor.register(Controller.new(2, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/two.ipc"}]}
+		}))
+		
+		assignment = endpoint_assignment("myservice")
+		
+		expect(assignment.endpoints.first.lb_endpoints.size).to be == 2
+	end
+	
 	it "selects the preferred common endpoint protocol" do
 		monitor.register(Controller.new(1, {
 			endpoint: {name: "myservice", scheme: "http", protocols: ["h2", "http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}
@@ -426,7 +441,38 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		end.to raise_exception(ArgumentError)
 	end
 	
-	it "runs an xDS server when bound" do
+	it "does not republish unchanged endpoints" do
+		monitor.register(Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		}))
+		
+		version = control_plane.version(Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE)
+		monitor.run_once
+		
+		expect(control_plane.version(Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE)).to be == version
+	end
+	
+	it "keeps unchanged assignments in the state of the world when another cluster changes" do
+		monitor.register(Controller.new(1, {
+			endpoint: {name: "service-a", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		}))
+		monitor.register(Controller.new(2, {
+			endpoint: {name: "service-b", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.2", port: 50052}]}
+		}))
+		
+		response = control_plane.response(
+			Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE,
+			["service-a", "service-b"]
+		)
+		
+		names = response.resources.map do |resource|
+			Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(resource.value).cluster_name
+		end
+		
+		expect(names.sort).to be == ["service-a", "service-b"]
+	end
+	
+	it "runs dedicated cluster and endpoint discovery services when bound" do
 		parent = Class.new do
 			def initialize
 				@count = 0
@@ -445,12 +491,16 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		end.new
 		
 		calls = []
+		dispatcher = Object.new
+		dispatcher.define_singleton_method(:register){|service| calls << [:register, service]}
 		original_server = Async::GRPC::XDS.send(:remove_const, :Server)
 		
 		fake_server = Class.new do
-			define_method(:initialize) do |control_plane|
-				calls << [:initialize, control_plane]
+			define_method(:initialize) do |control_plane, services:|
+				calls << [:initialize, control_plane, services]
 			end
+			
+			define_method(:dispatcher) {dispatcher}
 			
 			define_method(:run) do |endpoint|
 				calls << [:run, endpoint]
@@ -458,11 +508,14 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		end
 		
 		Async::GRPC::XDS.const_set(:Server, fake_server)
-		
 		monitor = subject.new(bind: "http://127.0.0.1:18000")
 		
 		expect(monitor.run(parent: parent)).to be == :monitor_task
-		expect(calls.first).to be == [:initialize, monitor.control_plane]
+		expect(calls.first).to be == [
+			:initialize,
+			monitor.control_plane,
+			[Async::GRPC::XDS::ClusterDiscoveryService, Async::GRPC::XDS::EndpointDiscoveryService]
+		]
 		expect(calls.last.last).to be_a(Async::HTTP::Endpoint)
 	ensure
 		Async::GRPC::XDS.send(:remove_const, :Server)

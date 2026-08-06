@@ -4,3 +4,4 @@
 gems.locked
 pkg
 external
+examples/falcon/*.ipc

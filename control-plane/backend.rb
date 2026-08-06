@@ -30,7 +30,7 @@ rack_application = proc do |env|
 	]
 end
 
-Sync do |task|
+Sync do
 	supervisor_endpoint = IO::Endpoint::Generic.parse(ENV.fetch("SUPERVISOR_ENDPOINT"))
 	http_endpoint = IO::Endpoint.tcp("0.0.0.0", backend_port)
 	
@@ -42,16 +42,18 @@ Sync do |task|
 		scheme: "http"
 	)
 	
+	state = {
+		endpoint: {
+			name: service_name,
+			scheme: :http,
+			protocols: Async::HTTP::Protocol::HTTP1.names,
+			addresses: [{address: backend_address, port: backend_port}],
+		}
+	}
+	
 	worker = Async::Service::Supervisor::Worker.new(
 		endpoint: supervisor_endpoint,
-		state: {
-			endpoint: {
-				name: service_name,
-				scheme: :http,
-				protocols: Async::HTTP::Protocol::HTTP1.names,
-				addresses: [{address: backend_address, port: backend_port}],
-			}
-		}
+		state: state
 	)
 	
 	worker.run

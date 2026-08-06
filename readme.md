@@ -8,7 +8,7 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
 
 `async-service-supervisor-envoy` publishes supervised worker endpoints to Envoy:
 
-  - **xDS control plane** - Runs an ADS server backed by `async-grpc-xds`.
+  - **Cluster and endpoint discovery** - Runs dedicated CDS and EDS services backed by `async-grpc-xds`, leaving ADS free for listener, route, and other configuration.
   - **Supervisor integration** - Registers and removes endpoints from supervisor worker lifecycle events.
   - **Multiple clusters** - Groups workers by `state[:name]` by default.
   - **Endpoint contract** - Converts concrete post-bind worker listeners into Envoy upstream endpoints, including grouped IP or Unix socket addresses.
