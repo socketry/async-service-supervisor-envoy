@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
 	spec.name = "async-service-supervisor-envoy"
 	spec.version = Async::Service::Supervisor::Envoy::VERSION
 	
-	spec.summary = "Envoy xDS monitor for async-service-supervisor."
+	spec.summary = "Envoy endpoint discovery monitor for async-service-supervisor."
 	spec.authors = ["Samuel Williams"]
 	spec.license = "MIT"
 	

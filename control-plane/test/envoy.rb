@@ -47,18 +47,25 @@ describe "Envoy control plane" do
 		expect(responses.filter_map{|response| response["x-backend-id"]}.uniq.sort).to be == ["backend-a", "backend-b"]
 	end
 	
-	it "loads the xDS cluster from the supervisor monitor" do
+	it "discovers cluster endpoints from the supervisor monitor" do
 		uri = admin_uri + "/clusters?format=json"
 		
-		cluster_status = eventually do
+		host_statuses = eventually do
 			if (response = Net::HTTP.get_response(uri)).code.to_i == 200
 				clusters = JSON.parse(response.body)
-				clusters.fetch("cluster_statuses").find do |cluster|
+				cluster_status = clusters.fetch("cluster_statuses").find do |cluster|
 					cluster.fetch("name") == "app-http1"
 				end
+				
+				hosts = cluster_status&.fetch("host_statuses", nil)
+				hosts if hosts&.size == 2
 			end
 		end
 		
-		expect(cluster_status).not.to be_nil
+		addresses = host_statuses.map do |host|
+			host.fetch("address").fetch("socket_address").fetch("port_value")
+		end
+		
+		expect(addresses.sort).to be == [9292, 9293]
 	end
 end

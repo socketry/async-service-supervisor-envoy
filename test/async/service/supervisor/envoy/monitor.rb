@@ -4,7 +4,6 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "async/service/supervisor/envoy/monitor"
-require "async/grpc/xds/http_health_check"
 require "envoy/config/endpoint/v3/endpoint_pb"
 
 describe Async::Service::Supervisor::Envoy::Monitor do
@@ -49,20 +48,17 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(load_balancer_endpoint.endpoint.address.socket_address.port_value).to be == 50051
 	end
 	
-	it "publishes active health checks" do
-		health_check = Async::GRPC::XDS::HTTPHealthCheck.build("/services/ping")
-		monitor = subject.new(health_checks: [health_check])
+	it "never publishes cluster resources" do
 		controller = Controller.new(1, {
 			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		})
 		
 		monitor.register(controller)
-		cluster = monitor.control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
 		
-		expect(cluster.health_checks).to be == [health_check]
+		expect(control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE)).to be(:empty?)
 	end
 	
-	it "publishes ORCA worker identity and load-balancing configuration" do
+	it "publishes ORCA worker identity" do
 		monitor = subject.new(
 			bind: "http://127.0.0.1:18000",
 			orca: true,
@@ -80,15 +76,8 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 			["myservice"]
 		)
 		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
-		cluster = monitor.control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
-		typed_configuration = cluster.load_balancing_policy.policies.first.typed_extension_config
-		configuration = Envoy::Extensions::LoadBalancingPolicies::ClientSideWeightedRoundRobin::V3::ClientSideWeightedRoundRobin.decode(
-			typed_configuration.typed_config.value
-		)
 		
 		expect(assignment.endpoints.first.lb_endpoints.first.endpoint.hostname).to be == "worker-1"
-		expect(configuration.enable_oob_load_report.value).to be == true
-		expect(configuration.oob_reporting_config.port_value).to be == 18000
 	end
 	
 	it "samples per-worker ORCA load reports" do
@@ -171,9 +160,6 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		load_balancer_endpoint = assignment.endpoints.first.lb_endpoints.first
 		
 		expect(load_balancer_endpoint.endpoint.address.pipe.path).to be == "/tmp/falcon.ipc"
-		
-		cluster = control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
-		expect(cluster.http2_protocol_options).to be_nil
 	end
 	
 	it "keeps one endpoint's addresses grouped" do
@@ -394,78 +380,93 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		}
 	end
 	
-	it "selects the preferred common endpoint protocol" do
+	it "publishes distinct endpoints reported by several workers" do
 		monitor.register(Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocols: ["h2", "http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/one.ipc"}]}
 		}))
 		monitor.register(Controller.new(2, {
 			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/two.ipc"}]}
 		}))
 		
-		cluster = control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE).first
-		expect(cluster.http2_protocol_options).not.to be_nil
+		assignment = endpoint_assignment("myservice")
+		
+		expect(assignment.endpoints.first.lb_endpoints.size).to be == 2
 	end
 	
-	it "rejects endpoints without a common protocol in one cluster" do
+	it "does not republish unchanged endpoints" do
 		monitor.register(Controller.new(1, {
-			endpoint: {name: "myservice", scheme: "http", protocols: ["http/1.1"], addresses: [{path: "/tmp/one.ipc"}]}
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
 		}))
 		
-		expect do
-			monitor.register(Controller.new(2, {
-				endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{path: "/tmp/two.ipc"}]}
-			}))
-		end.to raise_exception(ArgumentError)
+		version = control_plane.version(Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE)
+		monitor.run_once
+		
+		expect(control_plane.version(Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE)).to be == version
 	end
 	
-	it "rejects unsupported endpoint protocols" do
-		expect do
-			monitor.register(Controller.new(1, {
-				endpoint: {name: "myservice", scheme: "http", protocols: ["unsupported"], addresses: [{path: "/tmp/one.ipc"}]}
-			}))
-		end.to raise_exception(ArgumentError)
+	it "keeps unchanged assignments in the state of the world when another cluster changes" do
+		monitor.register(Controller.new(1, {
+			endpoint: {name: "service-a", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		}))
+		monitor.register(Controller.new(2, {
+			endpoint: {name: "service-b", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.2", port: 50052}]}
+		}))
+		
+		response = control_plane.response(
+			Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE,
+			["service-a", "service-b"]
+		)
+		
+		names = response.resources.map do |resource|
+			Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(resource.value).cluster_name
+		end
+		
+		expect(names.sort).to be == ["service-a", "service-b"]
 	end
 	
-	it "runs an xDS server when bound" do
+	it "serves endpoint discovery and nothing else" do
+		monitor = subject.new(bind: "http://127.0.0.1:18000")
+		
+		expect(monitor.services.map(&:service_name)).to be == [
+			"envoy.service.endpoint.v3.EndpointDiscoveryService"
+		]
+	end
+	
+	it "serves ORCA alongside endpoint discovery" do
+		monitor = subject.new(
+			bind: "http://127.0.0.1:18000",
+			orca: true,
+			processor: processor,
+			utilization_monitor: utilization_monitor
+		)
+		
+		expect(monitor.services.map(&:service_name)).to be == [
+			"envoy.service.endpoint.v3.EndpointDiscoveryService",
+			"xds.service.orca.v3.OpenRcaService"
+		]
+	end
+	
+	it "runs a server task only when bound" do
 		parent = Class.new do
 			def initialize
-				@count = 0
+				@blocks = []
 			end
+			
+			attr :blocks
 			
 			def async(&block)
-				@count += 1
-				
-				if @count == 1
-					:monitor_task
-				else
-					block.call
-					:server_task
-				end
-			end
-		end.new
-		
-		calls = []
-		original_server = Async::GRPC::XDS.send(:remove_const, :Server)
-		
-		fake_server = Class.new do
-			define_method(:initialize) do |control_plane|
-				calls << [:initialize, control_plane]
-			end
-			
-			define_method(:run) do |endpoint|
-				calls << [:run, endpoint]
+				@blocks << block
+				:"task-#{@blocks.size}"
 			end
 		end
 		
-		Async::GRPC::XDS.const_set(:Server, fake_server)
+		unbound = parent.new
+		monitor.run(parent: unbound)
 		
-		monitor = subject.new(bind: "http://127.0.0.1:18000")
+		bound = parent.new
+		expect(subject.new(bind: "http://127.0.0.1:18000").run(parent: bound)).to be == :"task-1"
 		
-		expect(monitor.run(parent: parent)).to be == :monitor_task
-		expect(calls.first).to be == [:initialize, monitor.control_plane]
-		expect(calls.last.last).to be_a(Async::HTTP::Endpoint)
-	ensure
-		Async::GRPC::XDS.send(:remove_const, :Server)
-		Async::GRPC::XDS.const_set(:Server, original_server)
+		expect(unbound.blocks.size).to be == 1
+		expect(bound.blocks.size).to be == 2
 	end
 end

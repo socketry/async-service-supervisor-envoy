@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+  - Serve endpoints from a dedicated `EndpointDiscoveryService` instead of the aggregated discovery service, leaving ADS available for cluster, listener and route configuration.
+  - Stop publishing cluster resources. Declare clusters in Envoy, or in a separate control plane, including their protocol options, active health checks and load-balancing policy.
+  - Remove the `health_checks:` monitor option, which only configured published clusters.
+  - Stop validating endpoint schemes and protocols, which only constrained the cluster resources the monitor no longer publishes. Out-of-band ORCA still rejects Unix socket endpoints, because it cannot identify a worker without a distinct address.
+  - Publish endpoint assignments only when they change, instead of on every reconciliation.
   - Use normalized processor utilization from `process-metrics` v0.13.
 
 ## v0.4.0

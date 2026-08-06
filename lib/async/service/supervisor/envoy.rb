@@ -6,6 +6,7 @@
 require_relative "envoy/version"
 require_relative "envoy/delegate"
 require_relative "envoy/endpoint"
+require_relative "envoy/endpoint_discovery_service"
 require_relative "envoy/monitor"
 require_relative "envoy/orca_service"
 require_relative "envoy/supervised"
