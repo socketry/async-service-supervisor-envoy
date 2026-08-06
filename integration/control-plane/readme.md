@@ -13,15 +13,10 @@ Envoy initiates the xDS connection. The supervisor does not call Envoy's admin A
 ## Running Tests
 
 ``` bash
-$ cd integration/control-plane
-$ docker compose up --build --exit-code-from tests
+$ bundle exec bake test:integration name=control-plane
 ```
 
-To clean up containers and networks:
-
-``` bash
-$ docker compose down --remove-orphans
-```
+The task removes the scenario's containers, networks, and volumes after it finishes, including after failures.
 
 ## What This Proves
 
