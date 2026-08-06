@@ -1,9 +1,9 @@
 services:
   supervisor:
     build:
-      context: ..
-      dockerfile: control-plane/Dockerfile
-    command: bundle exec ruby control-plane/supervisor.rb
+      context: ../..
+      dockerfile: integration/control-plane/Dockerfile
+    command: bundle exec ruby integration/control-plane/supervisor.rb
     environment:
       - BUNDLE_GEMFILE=/code/gems.rb
       - BUNDLE_WITHOUT=maintenance
@@ -13,9 +13,9 @@ services:
 
   backend-a:
     build:
-      context: ..
-      dockerfile: control-plane/Dockerfile
-    command: bundle exec ruby control-plane/backend.rb
+      context: ../..
+      dockerfile: integration/control-plane/Dockerfile
+    command: bundle exec ruby integration/control-plane/backend.rb
     environment:
       - BUNDLE_GEMFILE=/code/gems.rb
       - BUNDLE_WITHOUT=maintenance
@@ -30,9 +30,9 @@ services:
 
   backend-b:
     build:
-      context: ..
-      dockerfile: control-plane/Dockerfile
-    command: bundle exec ruby control-plane/backend.rb
+      context: ../..
+      dockerfile: integration/control-plane/Dockerfile
+    command: bundle exec ruby integration/control-plane/backend.rb
     environment:
       - BUNDLE_GEMFILE=/code/gems.rb
       - BUNDLE_WITHOUT=maintenance
@@ -63,9 +63,9 @@ services:
 
   tests:
     build:
-      context: ..
-      dockerfile: control-plane/Dockerfile
-    command: bundle exec sus control-plane/test
+      context: ../..
+      dockerfile: integration/control-plane/Dockerfile
+    command: bundle exec sus integration/control-plane/test
     environment:
       - BUNDLE_GEMFILE=/code/gems.rb
       - BUNDLE_WITHOUT=maintenance
