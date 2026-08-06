@@ -13,13 +13,14 @@ Envoy initiates the xDS connection. The supervisor does not call Envoy's admin A
 ## Running Tests
 
 ``` bash
-$ docker compose -f control-plane/docker-compose.yaml up --build --exit-code-from tests
+$ cd integration/control-plane
+$ docker compose up --build --exit-code-from tests
 ```
 
 To clean up containers and networks:
 
 ``` bash
-$ docker compose -f control-plane/docker-compose.yaml down --remove-orphans
+$ docker compose down --remove-orphans
 ```
 
 ## What This Proves
