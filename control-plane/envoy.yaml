@@ -8,14 +8,6 @@ admin:
       address: 0.0.0.0
       port_value: 19000
 
-dynamic_resources:
-  ads_config:
-    api_type: GRPC
-    transport_api_version: V3
-    grpc_services:
-      - envoy_grpc:
-          cluster_name: xds_cluster
-
 static_resources:
   listeners:
     - name: listener_http
@@ -45,6 +37,8 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
+    # The cluster is static. Only its endpoints are discovered, from the
+    # supervisor's endpoint discovery service.
     - name: app-http1
       connect_timeout: 1s
       type: EDS
@@ -52,13 +46,19 @@ static_resources:
       eds_cluster_config:
         service_name: app-http1
         eds_config:
-          ads: {}
           resource_api_version: V3
-    - name: xds_cluster
+          api_config_source:
+            api_type: GRPC
+            transport_api_version: V3
+            grpc_services:
+              - envoy_grpc:
+                  cluster_name: supervisor_eds
+
+    - name: supervisor_eds
       connect_timeout: 1s
       type: STRICT_DNS
       load_assignment:
-        cluster_name: xds_cluster
+        cluster_name: supervisor_eds
         endpoints:
           - lb_endpoints:
               - endpoint:
