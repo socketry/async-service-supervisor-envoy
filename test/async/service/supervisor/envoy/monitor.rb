@@ -173,6 +173,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 	it "rejects Unix endpoints for out-of-band ORCA" do
 		monitor = subject.new(
 			bind: "http://127.0.0.1:18000",
+			publish_clusters: false,
 			orca: true,
 			processor: processor,
 			utilization_monitor: utilization_monitor
