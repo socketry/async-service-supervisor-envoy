@@ -16,7 +16,8 @@ end
 Sync do
 	supervisor_endpoint = endpoint(ENV.fetch("SUPERVISOR_ENDPOINT"))
 	monitor = Async::Service::Supervisor::Envoy::Monitor.new(
-		bind: ENV.fetch("XDS_BIND")
+		bind: ENV.fetch("XDS_BIND"),
+		publish_clusters: ENV.fetch("PUBLISH_CLUSTERS", "true") == "true"
 	)
 	
 	server = Async::Service::Supervisor::Server.new(

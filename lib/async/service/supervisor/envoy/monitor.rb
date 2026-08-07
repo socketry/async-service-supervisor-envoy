@@ -25,16 +25,17 @@ module Async
 		module Supervisor
 			# Provides Envoy integration for supervisor-managed services.
 			module Envoy
-				# Represents a supervisor monitor that publishes clusters and worker endpoints to Envoy using xDS.
+				# Represents a supervisor monitor that publishes worker endpoints and optionally clusters to Envoy using xDS.
 				#
-				# The monitor serves dedicated CDS and EDS streams, leaving ADS available to
-				# another control plane for listeners, routes, and other configuration.
+				# The monitor always serves a dedicated EDS stream and can additionally serve
+				# CDS, leaving ADS available to another control plane.
 				class Monitor < Async::Service::Supervisor::Monitor
 					# Initialize the monitor.
 					# @parameter bind [String | Nil] The optional address for the discovery server.
 					# @parameter delegate [Delegate] The delegate used to map supervisor state into Envoy endpoints.
 					# @parameter control_plane [Async::GRPC::XDS::ControlPlane] The xDS control plane to update.
 					# @parameter management_cluster [String] The static Envoy cluster used to reach this discovery server.
+					# @parameter publish_clusters [Boolean] Whether to publish derived cluster configuration through CDS.
 					# @parameter health_checks [Array(Envoy::Config::Core::V3::HealthCheck)] The active health checks applied to published clusters.
 					# @parameter orca [Boolean] Whether to collect and serve per-worker ORCA load reports.
 					# @parameter processor [Process::Metrics::Processor | Nil] The optional process CPU sampler.
@@ -45,6 +46,7 @@ module Async
 						delegate: Delegate.new,
 						control_plane: Async::GRPC::XDS::ControlPlane.new,
 						management_cluster: "xds_cluster",
+						publish_clusters: true,
 						health_checks: [],
 						orca: false,
 						processor: nil,
@@ -58,6 +60,7 @@ module Async
 						@delegate = delegate
 						@control_plane = control_plane
 						@eds_config = Async::GRPC::XDS::ConfigSource.grpc(management_cluster)
+						@publish_clusters = publish_clusters
 						@health_checks = health_checks
 						@interval = interval
 						@orca = orca
@@ -122,12 +125,12 @@ module Async
 						
 						if @bind
 							parent.async do
+								services = [Async::GRPC::XDS::EndpointDiscoveryService]
+								services.unshift(Async::GRPC::XDS::ClusterDiscoveryService) if @publish_clusters
+								
 								server = Async::GRPC::XDS::Server.new(
 									@control_plane,
-									services: [
-										Async::GRPC::XDS::ClusterDiscoveryService,
-										Async::GRPC::XDS::EndpointDiscoveryService,
-									]
+									services: services
 								)
 								server.dispatcher.register(ORCAService.new(self, minimum_interval: @interval)) if @orca
 								server.run(server_endpoint)
@@ -207,17 +210,21 @@ module Async
 						records_by_cluster = build_records_by_cluster
 						clusters = build_clusters(records_by_cluster)
 						
-						records_by_cluster.each do |cluster, records|
-							configuration = cluster_configuration(records)
-							
-							unless @published_clusters[cluster] == configuration
-								@control_plane.update_cluster(cluster, **configuration)
-								@published_clusters[cluster] = configuration
+						if @publish_clusters
+							records_by_cluster.each do |cluster, records|
+								configuration = cluster_configuration(records)
+								
+								unless @published_clusters[cluster] == configuration
+									@control_plane.update_cluster(cluster, **configuration)
+									@published_clusters[cluster] = configuration
+								end
 							end
+						elsif @orca
+							records_by_cluster.each_value{|records| validate_orca_records(records)}
 						end
 						
 						# Skipping an identical assignment only avoids a redundant version bump:
-						(@published_clusters.keys | clusters.keys).each do |cluster|
+						(@published_endpoints.keys | clusters.keys).each do |cluster|
 							endpoints = clusters.fetch(cluster, [])
 							next if @published_endpoints[cluster] == endpoints
 							
@@ -276,9 +283,7 @@ module Async
 						}
 						
 						if @orca
-							if records.any?{|record| record[:endpoint].addresses.any?{|address| address[:path]}}
-								raise ArgumentError, "Out-of-band ORCA reporting requires IP endpoints!"
-							end
+							validate_orca_records(records)
 							
 							configuration[:load_balancing_policy] = Async::GRPC::XDS::ClientSideWeightedRoundRobin.build(
 								@orca_port,
@@ -287,6 +292,12 @@ module Async
 						end
 						
 						configuration
+					end
+					
+					def validate_orca_records(records)
+						if records.any?{|record| record[:endpoint].addresses.any?{|address| address[:path]}}
+							raise ArgumentError, "Out-of-band ORCA reporting requires IP endpoints!"
+						end
 					end
 					
 					def sample_load_reports

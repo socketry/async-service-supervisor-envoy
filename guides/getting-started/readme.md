@@ -19,7 +19,7 @@ The gem depends on `async-service-supervisor` and `async-grpc-xds`.
   - {ruby Async::Service::Supervisor::Envoy::Monitor} - A supervisor monitor that publishes worker clusters through CDS and their endpoints through EDS.
   - {ruby Async::Service::Supervisor::Envoy::Endpoint} - A small value object for endpoint state.
 
-The monitor serves dedicated Cluster Discovery Service and Endpoint Discovery Service streams. It does not claim Envoy's Aggregated Discovery Service, so another control plane can use ADS for listeners, routes, and other configuration.
+The monitor always serves a dedicated Endpoint Discovery Service stream. By default it also serves Cluster Discovery Service. It does not claim Envoy's Aggregated Discovery Service, so another control plane can use ADS for listeners, routes, and other configuration.
 
 CDS describes the logical services exposed by supervised workers, including their supported protocol, active health checks, and load-balancing policy. EDS supplies the concrete workers currently available for each service.
 
@@ -69,7 +69,18 @@ Async::Service::Supervisor::Envoy::Monitor.new(
 )
 ```
 
-By default, workers are grouped into clusters by `state[:name]`. `management_cluster` must match the static Envoy cluster used to reach the monitor.
+By default, workers are grouped into clusters by `state[:name]`. When cluster publication is enabled, `management_cluster` must match the static Envoy cluster used to reach the monitor.
+
+If another control plane owns cluster configuration, disable CDS publication while retaining supervisor-owned endpoint discovery:
+
+``` ruby
+Async::Service::Supervisor::Envoy::Monitor.new(
+	bind: "http://127.0.0.1:18000",
+	publish_clusters: false
+)
+```
+
+In this mode, the external control plane or bootstrap configuration must define each cluster, configure it to use the monitor's dedicated EDS service, and supply its protocol, health checks, and load-balancing policy. The cluster's EDS service name must match the worker cluster name published by the monitor.
 
 ## Envoy Configuration
 

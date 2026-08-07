@@ -64,6 +64,34 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(cluster.eds_cluster_config.eds_config.api_config_source.grpc_services.first.envoy_grpc.cluster_name).to be == "xds_cluster"
 	end
 	
+	it "can publish endpoints without publishing clusters" do
+		monitor = subject.new(publish_clusters: false)
+		control_plane = monitor.control_plane
+		controller = Controller.new(1, {
+			endpoint: {name: "myservice", scheme: "http", protocols: ["h2"], addresses: [{address: "127.0.0.1", port: 50051}]}
+		})
+		
+		monitor.register(controller)
+		
+		response = control_plane.response(
+			Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE,
+			["myservice"]
+		)
+		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
+		
+		expect(assignment.cluster_name).to be == "myservice"
+		expect(control_plane.resources(Async::GRPC::XDS::ControlPlane::CLUSTER_TYPE)).to be(:empty?)
+		
+		monitor.remove(controller)
+		response = control_plane.response(
+			Async::GRPC::XDS::ControlPlane::ENDPOINT_TYPE,
+			["myservice"]
+		)
+		assignment = Envoy::Config::Endpoint::V3::ClusterLoadAssignment.decode(response.resources.first.value)
+		
+		expect(assignment.endpoints.flat_map(&:lb_endpoints)).to be(:empty?)
+	end
+	
 	it "publishes ORCA worker identity and load-balancing configuration" do
 		monitor = subject.new(
 			bind: "http://127.0.0.1:18000",
@@ -472,7 +500,7 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(names.sort).to be == ["service-a", "service-b"]
 	end
 	
-	it "runs dedicated cluster and endpoint discovery services when bound" do
+	it "runs the configured dedicated discovery services when bound" do
 		parent = Class.new do
 			def initialize
 				@count = 0
@@ -511,10 +539,21 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		monitor = subject.new(bind: "http://127.0.0.1:18000")
 		
 		expect(monitor.run(parent: parent)).to be == :monitor_task
-		expect(calls.first).to be == [
+		
+		endpoint_parent = parent.class.new
+		endpoint_monitor = subject.new(bind: "http://127.0.0.1:18001", publish_clusters: false)
+		expect(endpoint_monitor.run(parent: endpoint_parent)).to be == :monitor_task
+		
+		initializations = calls.select{|call| call.first == :initialize}
+		expect(initializations.first).to be == [
 			:initialize,
 			monitor.control_plane,
 			[Async::GRPC::XDS::ClusterDiscoveryService, Async::GRPC::XDS::EndpointDiscoveryService]
+		]
+		expect(initializations.last).to be == [
+			:initialize,
+			endpoint_monitor.control_plane,
+			[Async::GRPC::XDS::EndpointDiscoveryService]
 		]
 		expect(calls.last.last).to be_a(Async::HTTP::Endpoint)
 	ensure
