@@ -6,8 +6,6 @@
 source "https://rubygems.org"
 
 gem "falcon"
-gem "async-grpc-xds", github: "socketry/async-grpc-xds", ref: "fd9867c9155550982fff6eb77ed75a98c84fda49"
-
 gemspec
 
 group :maintenance, optional: true do
