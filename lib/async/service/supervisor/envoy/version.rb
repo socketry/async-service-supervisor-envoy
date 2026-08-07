@@ -11,7 +11,7 @@ module Async
 		module Supervisor
 			# @namespace
 			module Envoy
-				VERSION = "0.4.0"
+				VERSION = "0.5.0"
 			end
 		end
 	end

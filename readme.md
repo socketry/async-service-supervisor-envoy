@@ -25,7 +25,7 @@ Please see the [project documentation](https://socketry.github.io/async-service-
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
 
-### Unreleased
+### v0.5.0
 
   - Serve clusters and endpoints through dedicated CDS and EDS services instead of the aggregated discovery service, leaving ADS available for listener, route, and other configuration.
   - Allow cluster publication to be disabled when clusters are owned by another control plane.
