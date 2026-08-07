@@ -8,7 +8,7 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
 
 `async-service-supervisor-envoy` publishes supervised worker endpoints to Envoy:
 
-  - **xDS control plane** - Runs an ADS server backed by `async-grpc-xds`.
+  - **Cluster and endpoint discovery** - Runs dedicated CDS and EDS services backed by `async-grpc-xds`, leaving ADS free for listener, route, and other configuration.
   - **Supervisor integration** - Registers and removes endpoints from supervisor worker lifecycle events.
   - **Multiple clusters** - Groups workers by `state[:name]` by default.
   - **Endpoint contract** - Converts concrete post-bind worker listeners into Envoy upstream endpoints, including grouped IP or Unix socket addresses.
@@ -19,11 +19,19 @@ Provides an Envoy xDS monitor for `async-service-supervisor`.
 
 Please see the [project documentation](https://socketry.github.io/async-service-supervisor-envoy/) for more details.
 
-  - [Getting Started](https://socketry.github.io/async-service-supervisor-envoy/guides/getting-started/index) - This guide explains how to use `async-service-supervisor-envoy` to publish supervised worker endpoints to Envoy using xDS.
+  - [Getting Started](https://socketry.github.io/async-service-supervisor-envoy/guides/getting-started/index) - This guide explains how to use `async-service-supervisor-envoy` to publish supervised worker clusters and endpoints to Envoy using xDS.
 
 ## Releases
 
 Please see the [project releases](https://socketry.github.io/async-service-supervisor-envoy/releases/index) for all releases.
+
+### Unreleased
+
+  - Serve clusters and endpoints through dedicated CDS and EDS services instead of the aggregated discovery service, leaving ADS available for listener, route, and other configuration.
+  - Allow cluster publication to be disabled when clusters are owned by another control plane.
+  - Configure generated clusters to obtain endpoint assignments from the dedicated EDS service.
+  - Publish endpoint assignments only when they change, instead of on every reconciliation.
+  - Use normalized processor utilization from `process-metrics` v0.13.
 
 ### v0.4.0
 

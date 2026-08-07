@@ -10,6 +10,7 @@ services:
       - CONSOLE_OUTPUT=XTerm
       - XDS_BIND=http://0.0.0.0:18000
       - SUPERVISOR_ENDPOINT=tcp://0.0.0.0:12000
+      - PUBLISH_CLUSTERS=${PUBLISH_CLUSTERS:-true}
 
   backend-a:
     build:
@@ -49,7 +50,7 @@ services:
     image: envoyproxy/envoy:v1.32-latest
     command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
     volumes:
-      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ${ENVOY_CONFIG:-./envoy.yaml}:/etc/envoy/envoy.yaml:ro
     ports:
       - "10000:10000"
       - "19000:19000"

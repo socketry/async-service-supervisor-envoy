@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+  - Serve clusters and endpoints through dedicated CDS and EDS services instead of the aggregated discovery service, leaving ADS available for listener, route, and other configuration.
+  - Allow cluster publication to be disabled when clusters are owned by another control plane.
+  - Configure generated clusters to obtain endpoint assignments from the dedicated EDS service.
+  - Publish endpoint assignments only when they change, instead of on every reconciliation.
   - Use normalized processor utilization from `process-metrics` v0.13.
 
 ## v0.4.0

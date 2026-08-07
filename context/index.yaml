@@ -9,4 +9,4 @@ files:
 - path: getting-started.md
   title: Getting Started
   description: This guide explains how to use `async-service-supervisor-envoy` to
-    publish supervised worker endpoints to Envoy using xDS.
+    publish supervised worker clusters and endpoints to Envoy using xDS.

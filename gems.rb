@@ -6,7 +6,6 @@
 source "https://rubygems.org"
 
 gem "falcon"
-
 gemspec
 
 group :maintenance, optional: true do

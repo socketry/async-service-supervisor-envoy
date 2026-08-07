@@ -10,9 +10,9 @@ env:
 
 jobs:
   test:
-    name: ${{matrix.ruby}} on ${{matrix.os}}
-    runs-on: ${{matrix.os}}-latest
-    continue-on-error: ${{matrix.experimental}}
+    name: ${{ matrix.ruby }} with ${{ matrix.discovery.name }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
+    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
       matrix:
@@ -24,6 +24,14 @@ jobs:
           - "3.4"
           - "4.0"
 
+        discovery:
+          - name: CDS and EDS
+            publish_clusters: "true"
+            envoy_config: ./envoy.yaml
+          - name: EDS only
+            publish_clusters: "false"
+            envoy_config: ./envoy-eds.yaml
+
         experimental: [false]
 
     steps:
@@ -32,5 +40,7 @@ jobs:
     - name: Run tests
       timeout-minutes: 10
       env:
-        RUBY_VERSION: ${{matrix.ruby}}
+        RUBY_VERSION: ${{ matrix.ruby }}
+        PUBLISH_CLUSTERS: ${{ matrix.discovery.publish_clusters }}
+        ENVOY_CONFIG: ${{ matrix.discovery.envoy_config }}
       run: docker compose -f control-plane/docker-compose.yaml up --build --exit-code-from tests
