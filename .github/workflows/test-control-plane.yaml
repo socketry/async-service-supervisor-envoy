@@ -36,6 +36,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: "4.0"
+        bundler-cache: true
 
     - name: Run tests
       timeout-minutes: 10
@@ -43,4 +47,4 @@ jobs:
         RUBY_VERSION: ${{ matrix.ruby }}
         PUBLISH_CLUSTERS: ${{ matrix.discovery.publish_clusters }}
         ENVOY_CONFIG: ${{ matrix.discovery.envoy_config }}
-      run: docker compose -f control-plane/docker-compose.yaml up --build --exit-code-from tests
+      run: bundle exec bake test:integration name=control-plane

@@ -17,20 +17,16 @@ Envoy initiates the connection. The supervisor does not call Envoy's admin API o
 ## Running Tests
 
 ``` bash
-$ docker compose -f control-plane/docker-compose.yaml up --build --exit-code-from tests
+$ bundle exec bake test:integration name=control-plane
 ```
 
 To run the EDS-only scenario:
 
 ``` bash
-$ PUBLISH_CLUSTERS=false ENVOY_CONFIG=./envoy-eds.yaml docker compose -f control-plane/docker-compose.yaml up --build --exit-code-from tests
+$ PUBLISH_CLUSTERS=false ENVOY_CONFIG=./envoy-eds.yaml bundle exec bake test:integration name=control-plane
 ```
 
-To clean up containers and networks:
-
-``` bash
-$ docker compose -f control-plane/docker-compose.yaml down --remove-orphans
-```
+The task removes the scenario's containers, networks, and volumes after it finishes, including after failures.
 
 ## What This Proves
 
