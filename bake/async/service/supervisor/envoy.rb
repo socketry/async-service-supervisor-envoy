@@ -22,6 +22,15 @@ def endpoints
 	end
 end
 
+# Get the latest ORCA load reports sampled by the running Envoy monitor.
+def orca
+	data = envoy_status.fetch(:data)
+	
+	data.fetch(:orca) do
+		raise "The Async::Service::Supervisor::Envoy::Monitor is not configured for ORCA reporting."
+	end
+end
+
 private
 
 def supervisor_status

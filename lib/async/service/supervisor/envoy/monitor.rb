@@ -144,9 +144,13 @@ module Async
 					# @returns [Hash] The clusters and endpoint hashes.
 					def as_json
 						@mutex.synchronize do
-							{
+							data = {
 								clusters: build_clusters
 							}
+							
+							data[:orca] = build_orca if @orca
+							
+							data
 						end
 					end
 					
@@ -265,6 +269,14 @@ module Async
 								groups.each_value.map(&:as_json)
 							end
 						end
+					end
+					
+					def build_orca
+						{
+							port: @orca_port,
+							authorities: @authorities.dup,
+							reports: @load_reports.transform_values(&:to_h),
+						}
 					end
 					
 					def cluster_configuration(records)

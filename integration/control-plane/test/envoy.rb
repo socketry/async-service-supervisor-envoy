@@ -29,6 +29,25 @@ describe "Envoy control plane" do
 		raise error || "Condition was not met within #{timeout} seconds!"
 	end
 	
+	def find_hash(value, &block)
+		case value
+		when Hash
+			return value if yield(value)
+			
+			value.each_value do |child|
+				if match = find_hash(child, &block)
+					return match
+				end
+			end
+		when Array
+			value.each do |child|
+				if match = find_hash(child, &block)
+					return match
+				end
+			end
+		end
+	end
+	
 	it "routes requests through Envoy to supervised Falcon workers" do
 		uri = envoy_uri
 		
@@ -67,5 +86,35 @@ describe "Envoy control plane" do
 		end
 		
 		expect(addresses.sort).to be == [9292, 9293]
+	end
+	
+	if ENV.fetch("ORCA", "false") == "true"
+		it "reports ORCA load-balancing policy to Envoy" do
+			uri = admin_uri + "/config_dump"
+			
+			cluster = eventually do
+				if (response = Net::HTTP.get_response(uri)).code.to_i == 200
+					config_dump = JSON.parse(response.body)
+					clusters_config = config_dump.fetch("configs").find do |config|
+						config["@type"]&.end_with?("envoy.admin.v3.ClustersConfigDump")
+					end
+					dynamic_clusters = clusters_config.fetch("dynamic_active_clusters", [])
+					cluster = dynamic_clusters.filter_map{|entry| entry["cluster"]}.find{|cluster| cluster["name"] == "app-http1"}
+					
+					if cluster
+						cluster_json = JSON.generate(cluster)
+						cluster if cluster_json.include?("client_side_weighted_round_robin") || cluster_json.include?("ClientSideWeightedRoundRobin")
+					end
+				end
+			end
+			
+			typed_extension_config = cluster.fetch("load_balancing_policy").fetch("policies").first.fetch("typed_extension_config")
+			typed_config = typed_extension_config.fetch("typed_config")
+			
+			expect(typed_extension_config.fetch("name")).to be == "envoy.load_balancing_policies.client_side_weighted_round_robin"
+			expect(typed_config.fetch("@type")).to be == "type.googleapis.com/envoy.extensions.load_balancing_policies.client_side_weighted_round_robin.v3.ClientSideWeightedRoundRobin"
+			expect(typed_config.fetch("enable_oob_load_report")).to be == true
+			expect(typed_config.fetch("oob_reporting_period")).to be == "1s"
+		end
 	end
 end

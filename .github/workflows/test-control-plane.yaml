@@ -28,9 +28,11 @@ jobs:
           - name: CDS and EDS
             publish_clusters: "true"
             envoy_config: ./envoy.yaml
+            orca: "true"
           - name: EDS only
             publish_clusters: "false"
             envoy_config: ./envoy-eds.yaml
+            orca: "false"
 
         experimental: [false]
 
@@ -47,4 +49,5 @@ jobs:
         RUBY_VERSION: ${{ matrix.ruby }}
         PUBLISH_CLUSTERS: ${{ matrix.discovery.publish_clusters }}
         ENVOY_CONFIG: ${{ matrix.discovery.envoy_config }}
+        ORCA: ${{ matrix.discovery.orca }}
       run: bundle exec bake test:integration name=control-plane

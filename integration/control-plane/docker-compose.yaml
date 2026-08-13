@@ -11,6 +11,10 @@ services:
       - XDS_BIND=http://0.0.0.0:18000
       - SUPERVISOR_ENDPOINT=tcp://0.0.0.0:12000
       - PUBLISH_CLUSTERS=${PUBLISH_CLUSTERS:-true}
+      - ORCA=${ORCA:-false}
+      - UTILIZATION_PATH=/tmp/async-service-supervisor/utilization.shm
+    volumes:
+      - utilization:/tmp/async-service-supervisor
 
   backend-a:
     build:
@@ -25,6 +29,8 @@ services:
       - BACKEND_PORT=9292
       - SERVICE_NAME=app-http1
       - SUPERVISOR_ENDPOINT=tcp://supervisor:12000
+    volumes:
+      - utilization:/tmp/async-service-supervisor
     depends_on:
       supervisor:
         condition: service_started
@@ -42,6 +48,8 @@ services:
       - BACKEND_PORT=9293
       - SERVICE_NAME=app-http1
       - SUPERVISOR_ENDPOINT=tcp://supervisor:12000
+    volumes:
+      - utilization:/tmp/async-service-supervisor
     depends_on:
       supervisor:
         condition: service_started
@@ -74,5 +82,9 @@ services:
       - COVERAGE=${COVERAGE}
       - ENVOY_URI=http://envoy:10000
       - ENVOY_ADMIN_URI=http://envoy:19000
+      - ORCA=${ORCA:-false}
     depends_on:
       - envoy
+
+volumes:
+  utilization:
