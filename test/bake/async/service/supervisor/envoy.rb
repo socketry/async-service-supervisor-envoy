@@ -17,6 +17,17 @@ describe "async:service:supervisor:envoy" do
 						"api" => [
 							{addresses: [{path: "/tmp/api.ipc"}], healthy: true}
 						]
+					},
+					orca: {
+						port: 18000,
+						authorities: {"worker-1" => 1},
+						reports: {
+							"worker-1" => {
+								cpu_utilization: 0.5,
+								rps_fractional: 2.0,
+								named_metrics: {"orca.heartbeat" => 0.0}
+							}
+						}
 					}
 				}
 			}
@@ -48,6 +59,17 @@ describe "async:service:supervisor:envoy" do
 					"api" => [
 						{addresses: [{path: "/tmp/api.ipc"}], healthy: true}
 					]
+				},
+				orca: {
+					port: 18000,
+					authorities: {"worker-1" => 1},
+					reports: {
+						"worker-1" => {
+							cpu_utilization: 0.5,
+							rps_fractional: 2.0,
+							named_metrics: {"orca.heartbeat" => 0.0}
+						}
+					}
 				}
 			}
 		}
@@ -71,9 +93,38 @@ describe "async:service:supervisor:envoy" do
 		]
 	end
 	
+	it "returns ORCA load reports" do
+		expect(invoke("orca")).to be == {
+			port: 18000,
+			authorities: {"worker-1" => 1},
+			reports: {
+				"worker-1" => {
+					cpu_utilization: 0.5,
+					rps_fractional: 2.0,
+					named_metrics: {"orca.heartbeat" => 0.0}
+				}
+			}
+		}
+	end
+	
 	it "fails when the Envoy monitor is not running" do
 		expect do
 			invoke("status", status: [])
 		end.to raise_exception(RuntimeError, message: be =~ /no .*envoy.*monitor/i)
+	end
+	
+	it "fails when ORCA reporting is not configured" do
+		status = [
+			{
+				type: "Async::Service::Supervisor::Envoy::Monitor",
+				data: {
+					clusters: {}
+				}
+			}
+		]
+		
+		expect do
+			invoke("orca", status: status)
+		end.to raise_exception(RuntimeError, message: be =~ /ORCA reporting/)
 	end
 end

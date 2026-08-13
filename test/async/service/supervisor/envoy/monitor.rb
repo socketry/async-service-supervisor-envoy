@@ -151,6 +151,17 @@ describe Async::Service::Supervisor::Envoy::Monitor do
 		expect(report.cpu_utilization).to be == 0.5
 		expect(report.rps_fractional).to be == 2.0
 		expect(report.named_metrics).to be == {"orca.heartbeat" => 0.0}
+		expect(monitor.as_json[:orca]).to be == {
+			port: 18000,
+			authorities: {"worker-1" => 1},
+			reports: {
+				"worker-1" => {
+					cpu_utilization: 0.5,
+					rps_fractional: 2.0,
+					named_metrics: {"orca.heartbeat" => 0.0},
+				}
+			}
+		}
 		expect(monitor.worker?("worker-1")).to be == true
 		
 		monitor.remove(controller)
