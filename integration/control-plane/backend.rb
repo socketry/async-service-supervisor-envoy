@@ -6,10 +6,18 @@
 require "async"
 require "async/http/protocol/http1"
 require "async/service/supervisor/worker"
+require "async/utilization"
 require "falcon/server"
 require "io/endpoint/generic"
 require "io/endpoint/host_endpoint"
 require "socket"
+
+UTILIZATION_SCHEMA = {
+	connections_active: :u32,
+	connections_total: :u64,
+	requests_active: :u32,
+	requests_total: :u64,
+}.freeze
 
 backend_id = ENV.fetch("BACKEND_ID")
 backend_port = Integer(ENV.fetch("BACKEND_PORT"))
@@ -33,13 +41,15 @@ end
 Sync do
 	supervisor_endpoint = IO::Endpoint::Generic.parse(ENV.fetch("SUPERVISOR_ENDPOINT"))
 	http_endpoint = IO::Endpoint.tcp("0.0.0.0", backend_port)
+	utilization_registry = Async::Utilization::Registry.new
 	
 	middleware = Falcon::Server.middleware(rack_application, cache: false)
 	server = Falcon::Server.new(
 		middleware,
 		http_endpoint,
 		protocol: Async::HTTP::Protocol::HTTP1,
-		scheme: "http"
+		scheme: "http",
+		utilization_registry: utilization_registry
 	)
 	
 	state = {
@@ -53,7 +63,9 @@ Sync do
 	
 	worker = Async::Service::Supervisor::Worker.new(
 		endpoint: supervisor_endpoint,
-		state: state
+		state: state,
+		utilization_schema: UTILIZATION_SCHEMA,
+		utilization_registry: utilization_registry
 	)
 	
 	worker.run
